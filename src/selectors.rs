@@ -6,6 +6,7 @@ use rand::Rng;
 use std::fmt::Write;
 use tl::NodeHandle;
 use tl::{HTMLTag, Node, Parser};
+use radix_trie::{Trie,TrieKey};
 
 #[derive(Clone)]
 pub enum SelectorPart {
@@ -111,6 +112,20 @@ pub struct Selector {
     pub score: i32,
 }
 
+impl PartialEq for Selector {
+    fn eq(&self, other: &Selector) -> bool { 
+        self.string.eq(&other.string)
+    }
+}
+
+impl Eq for Selector { }
+
+impl TrieKey for Selector {
+    fn encode_bytes(&self) -> Vec<u8> {
+        TrieKey::encode_bytes(&self.string)
+    }
+}
+
 impl Selector {
     /// Create a new selector from multiple SelectorParts.
     /// The parts are interspersed with " > "; this means the element matched by each SelectorPart
@@ -130,12 +145,20 @@ impl Selector {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.parts.len()
+    }
+
+    pub fn try_select_with_skip(&self, handle: NodeHandle, parser: &Parser, skip: usize) -> Option<NodeHandle> {
+        self.parts.iter().skip(skip).fold(Some(handle), |acc, selector| {
+            acc.and_then(|node| selector.try_select(node, parser))
+        })
+    }
+
     /// Tries to find a node matching this Selector by searching all nodes below
     /// `handle`. A result will be returned iff exactly one element matched.
     pub fn try_select(&self, handle: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
-        self.parts.iter().fold(Some(handle), |acc, selector| {
-            acc.and_then(|node| selector.try_select(node, parser))
-        })
+        self.try_select_with_skip(handle, parser, 0)
     }
 
     pub(crate) fn score(&self) -> i32 {
@@ -181,40 +204,92 @@ impl ToString for Selector {
     }
 }
 
+pub(crate) struct SelectorCache {
+    selector_cache: Trie<Selector, (usize, Option<NodeHandle>)>,
+}
+
+impl SelectorCache {
+    pub(crate) fn new() -> Self {
+        SelectorCache {
+            selector_cache: Default::default()
+        }
+    }
+
+    pub(crate) fn try_select(&mut self, selector: &Selector, root: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
+        let should_cache = true || selector.len() < 5;
+        if let Some((ancestor_length, ancestor_handle)) = self.selector_cache.get_ancestor_value(selector) {
+            if ancestor_handle.is_some() && *ancestor_length < selector.len() {
+                let target = selector.try_select_with_skip(ancestor_handle.unwrap(), parser, *ancestor_length);
+                if should_cache {
+                    self.selector_cache.insert(selector.clone(), (selector.len(), target));
+                }
+                target
+            } else {
+                *ancestor_handle
+            }
+        } else {
+            let target = selector.try_select(root, parser);
+            if should_cache {
+                self.selector_cache.insert(selector.clone(), (selector.len(), target));
+            }
+            target
+        }
+    }
+}
+
 pub struct SelectorFuzzer {
-    root_selector_cache: HashMap<String, Option<NodeHandle>>,
+    root_selector_cache: SelectorCache,
     pub(crate) retries_used: usize,
 }
 
 impl SelectorFuzzer {
     pub fn new() -> Self {
         SelectorFuzzer {
-            root_selector_cache: HashMap::new(),
+            root_selector_cache: SelectorCache::new(),
             retries_used: 0,
         }
     }
 
-    /// Equivalent to selector.try_select(root, parser), but with an additional caching layer.
-    fn try_select_from_root(
-        &mut self,
-        selector: &Selector,
-        root: NodeHandle,
-        parser: &Parser,
-    ) -> Option<NodeHandle> {
-        let should_cache = selector.parts.len() < 7;
-        if should_cache {
-            let selector_str = selector.to_string();
-            if !self.root_selector_cache.contains_key(&selector_str) {
-                let result = selector.try_select(root, parser);
-                self.root_selector_cache.insert(selector_str, result);
-                result
-            } else {
-                *self.root_selector_cache.get(&selector_str).unwrap()
-            }
-        } else {
-            selector.try_select(root, parser)
-        }
-    }
+    ///// Equivalent to selector.try_select(root, parser), but with an additional caching layer.
+    //fn try_select_from_root(
+    //    &mut self,
+    //    selector: &Selector,
+    //    root: NodeHandle,
+    //    parser: &Parser,
+    //) -> Option<NodeHandle> {
+    //    let should_cache = selector.len() < 5;
+    //    if let Some((ancestor_length, ancestor_handle)) = self.root_selector_cache.get_ancestor_value(selector) {
+    //        if ancestor_handle.is_some() && *ancestor_length < selector.len() {
+    //            let target = selector.try_select_with_skip(ancestor_handle.unwrap(), parser, *ancestor_length);
+    //            if should_cache {
+    //                self.root_selector_cache.insert(selector.clone(), (selector.len(), target));
+    //            }
+    //            target
+    //        } else {
+    //            *ancestor_handle
+    //        }
+    //    } else {
+    //        let target = selector.try_select(root, parser);
+    //        if should_cache {
+    //            self.root_selector_cache.insert(selector.clone(), (selector.len(), target));
+    //        }
+    //        target
+    //    }
+
+    //    //let should_cache = selector.parts.len() < 7;
+    //    //if should_cache {
+    //    //    let selector_str = selector.to_string();
+    //    //    if !self.root_selector_cache.contains_key(&selector_str) {
+    //    //        let result = selector.try_select(root, parser);
+    //    //        self.root_selector_cache.insert(selector_str, result);
+    //    //        result
+    //    //    } else {
+    //    //        *self.root_selector_cache.get(&selector_str).unwrap()
+    //    //    }
+    //    //} else {
+    //    //    selector.try_select(root, parser)
+    //    //}
+    //}
 
     /// Attempt to create a new selector by mutating the given input selector.
     /// Mutating in this case means we split the selector at a random point and create a new
@@ -233,7 +308,7 @@ impl SelectorFuzzer {
 
         let random_index = rng.borrow_mut().gen_range(1..selector.parts.len());
         let (left, right) = selector.split_at(random_index);
-        let left_node = self.try_select_from_root(&left, root, parser)?;
+        let left_node = self.root_selector_cache.try_select(&left, root, parser)?;
         let new_left = self.random_selector_for_node(left_node, root, parser, retries, rng)?;
         Some(new_left.append(right))
     }
@@ -289,7 +364,7 @@ impl SelectorFuzzer {
             };
 
             let globally_unique = typ != 2
-                && matches!(self.try_select_from_root(&selector, root, parser), Some(h) if h == handle);
+                && matches!(self.root_selector_cache.try_select(&selector, root, parser), Some(h) if h == handle);
             if globally_unique {
                 return Some(selector);
             }

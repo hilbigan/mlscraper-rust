@@ -5,6 +5,7 @@ use log::{info, trace, warn, error};
 use rand::Rng;
 use std::time::Instant;
 use std::collections::HashSet;
+use std::cell::RefCell;
 use anyhow::{Result, anyhow};
 
 use crate::selectors::*;
@@ -188,6 +189,7 @@ impl TrainingResult {
 pub struct Training<'a> {
     documents: Vec<VDom<'a>>,
     document_roots: Vec<NodeHandle>,
+    document_selector_caches: Vec<RefCell<SelectorCache>>,
     attributes: Vec<Attribute<'a>>,
     selector_pool: HashMap<String, Vec<CheckedSelector>>,
     settings: FuzzerSettings
@@ -232,9 +234,15 @@ impl<'a> Training<'a> {
             return Err(anyhow!("Duplicate attribute {:?}!", duplicate.name));
         }
 
+        let document_selector_caches = documents
+            .iter()
+            .map(|_| RefCell::new(SelectorCache::new()))
+            .collect();
+
         let training = Training {
             documents,
             document_roots,
+            document_selector_caches,
             attributes,
             selector_pool: Default::default(),
             settings
@@ -270,7 +278,9 @@ impl<'a> Training<'a> {
             if matches!(ignore_document, Some(d) if d == i) {
                 continue;
             }
-            let node = selector.try_select(self.document_roots[i], self.documents[i].parser());
+            let node = self.document_selector_caches[i]
+                .borrow_mut()
+                .try_select(selector, self.document_roots[i], self.documents[i].parser());
             let node_text_value =
                 node.and_then(|node| util::get_node_text(&self.documents[i], node, &self.settings.text_retrieval_options));
             let expected = attribute.values[i].as_ref();
