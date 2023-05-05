@@ -118,3 +118,12 @@ selected in the DOM with a red border. After letting the program run
 for a bit, this is the output for the "big" example:
 
 ![Highlighted elements](./screenshots/highlighted.png)
+
+## Usage
+
+In your project's `Cargo.toml`:
+
+```toml
+[dependencies]
+mlscraper_rust = { git = "https://github.com/hilbigan/mlscraper-rust", branch = "main" }
+```
