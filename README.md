@@ -15,7 +15,7 @@ You can run this example by running `cargo run --release --example small`
 in this directory.
 
 All we have to do is to tell mlscraper-rust what values we expect
-to extract from the web page ("Albert Einstein", "March 14, 1879")...
+to extract from the web page...
 
 ```rust
     let html = reqwest::blocking::get("http://quotes.toscrape.com/author/Albert-Einstein/")
@@ -45,7 +45,7 @@ to extract from the web page ("Albert Einstein", "March 14, 1879")...
 
 `{"born": .author-born-date, "name": h3}`
 
-We can now use pre-trained `result` to scrape similar pages:
+We can now use the trained `result` object to scrape similar pages:
 
 ```rust
     let html = reqwest::blocking::get("http://quotes.toscrape.com/author/J-K-Rowling")
@@ -77,6 +77,7 @@ for example:
     // ------- 8< ---------------------
     // ... excerpt from examples/big.rs
     let result = train(
+        // Multiple input documents
         htmls.iter().map(|s| s.as_ref()).collect(),
         vec![
             // We expect this value to be "Defeat" on the first page, "Victory" 
@@ -98,7 +99,7 @@ that work on *all* the input documents for all the provided values.
 - **Smaller footprint**: mlscraper (Python) was killed by oomkiller on my
     machine while processing a 30kb HTML file. This version has no problems
     with many documents and attributes (although we could use some 
-    Multithreading).
+    Multithreading) -- see `examples/big.rs`.
 - **Proper handling of missing data**: We allow values to be missing from
     some training examples and provide different strategies of
     handling these cases (see `MissingDataStrategy`).
