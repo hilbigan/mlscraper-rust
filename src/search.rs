@@ -135,7 +135,7 @@ impl Default for FuzzerSettings {
         FuzzerSettings {
             missing_data_strategy: MissingDataStrategy::NodeMustExist,
             multiple_matches_strategy: MultipleMatchesStrategy::PrioritizeFirstMatch,
-            random_generation_count: 1000,
+            random_generation_count: 100,
             random_generation_retries: 100,
             survivor_count: 10,
             random_mutation_count: 20,
@@ -183,6 +183,13 @@ impl TrainingResult {
 
     pub fn get_selector<'a>(&'a self, attribute_name: &str) -> Option<&'a str> {
         self.selectors.get(attribute_name).map(|selector| selector.string.as_ref())
+    }
+
+    pub fn highlight_selections_with_red_border(&self, dom: &mut VDom<'_>) -> String {
+        self.selectors().values().for_each(|selector| {
+            util::style_selected_element(selector, dom);
+        });
+        dom.outer_html()
     }
 }
 

@@ -4,6 +4,7 @@ use mlscraper_rust::train;
 use mlscraper_rust::selectors::Selector;
 use mlscraper_rust::search::{AttributeBuilder, FuzzerSettings};
 use env_logger::Env;
+use std::fs;
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
@@ -40,9 +41,7 @@ fn main() {
     };
 
     let mut fuzzer_settings = FuzzerSettings::default();
-    fuzzer_settings.random_generation_count = 500;
-    fuzzer_settings.survivor_count = 100;
-    fuzzer_settings.random_mutation_count = 50;
+    fuzzer_settings.random_generation_count = 1000;
 
     let result = train(
         htmls.iter().map(|s| s.as_ref()).collect(),
@@ -124,7 +123,7 @@ fn main() {
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner0rank")
-                .values(&[Some("Bronze I"), Some("Bronze I"), Some("Bronze II")])
+                .values(&[Some("Bronze I"), Some("Silver IV"), Some("Bronze II")])
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner1rank")
@@ -144,23 +143,23 @@ fn main() {
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner5rank")
-                .values(&[Some("Bronze II"), Some("Unranked"), Some("Bronze IV")])
+                .values(&[Some("Bronze II"), Some("Silver III"), Some("Bronze IV")])
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner6rank")
-                .values(&[Some("Silver IV"), Some("Unranked"), Some("Bronze II")])
+                .values(&[Some("Silver IV"), Some("Bronze IV"), Some("Bronze II")])
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner7rank")
-                .values(&[Some("Bronze II"), Some("Bronze III"), Some("Bronze IV")])
+                .values(&[Some("Bronze II"), Some("Bronze IV"), Some("Bronze IV")])
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner8rank")
-                .values(&[Some("Silver IV"), Some("Bronze II"), Some("Unranked")])
+                .values(&[Some("Silver IV"), Some("Bronze I"), Some("Unranked")])
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner9rank")
-                .values(&[Some("Bronze IV"), Some("Unranked"), Some("Bronze III")])
+                .values(&[Some("Bronze IV"), Some("Bronze II"), Some("Bronze III")])
                 .filter(&filter)
                 .build(),
             AttributeBuilder::new("summoner0champion")
@@ -387,7 +386,7 @@ fn main() {
         .text()
         .expect("text");
 
-    let new_dom = result.parse(&new_page)
+    let mut new_dom = result.parse(&new_page)
         .expect("parse");
 
     println!("Game type: {:?}", result.get_value(&new_dom, "game_type").ok().flatten());
@@ -405,4 +404,8 @@ fn main() {
             result.get_value(&new_dom, &format!("summoner{i}assists")).ok().flatten().unwrap_or("N/A".into())
         )
     }
+
+    // Uncomment to write highlighted HTML file
+    // let out_html = result.highlight_selections_with_red_border(&mut new_dom);
+    // fs::write("out.html", out_html).expect("write");
 }

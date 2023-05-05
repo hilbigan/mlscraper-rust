@@ -26,7 +26,6 @@ fn main() {
 
     // Print best selectors
     println!("{:?}", result.selectors());
-
     
     let html = reqwest::blocking::get("http://quotes.toscrape.com/author/J-K-Rowling")
         .expect("request")
