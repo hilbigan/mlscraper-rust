@@ -23,7 +23,7 @@ to extract from the web page ("Albert Einstein", "March 14, 1879")...
         .text()
         .expect("text");
 
-    let result = train(
+    let result = mlscraper_rust::train(
         vec![html.as_str()],
         vec![
             AttributeBuilder::new("name")
@@ -68,6 +68,27 @@ This prints:
 born: Some("July 31, 1965")
 name: Some("J.K. Rowling")
 ```
+
+As with the original mlscraper, mlscraper-rust unleashes its full potential
+when providing *multiple* input files and *multiple* attribute values,
+for example:
+
+```rust
+    // ------- 8< ---------------------
+    // ... excerpt from examples/big.rs
+    let result = train(
+        htmls.iter().map(|s| s.as_ref()).collect(),
+        vec![
+            // We expect this value to be "Defeat" on the first page, "Victory" 
+            // on the second, etc.
+            AttributeBuilder::new("team0result")
+                .values(&[Some("Defeat"), Some("Victory"), Some("Victory")])
+                .build(),
+    // ------------------- >8 ---------
+```
+
+mlscraper-rust will automatically generate CSS selectors
+that work on *all* the input documents for all the provided values.
 
 ## Advantages over mlscraper (Python)
 
