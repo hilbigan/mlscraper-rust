@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use log::{info, trace, warn};
+use log::{info, trace, warn, error};
 use rand::Rng;
 use std::time::Instant;
+use std::collections::HashSet;
+use anyhow::{Result, anyhow};
 
-use crate::util::{find_root, get_direct_inner_text, get_trimmed_attr_value};
-use crate::{util};
 use crate::selectors::*;
+use crate::util;
+use crate::util::{find_root, get_direct_inner_text, get_trimmed_attr_value};
 use tl::{NodeHandle, VDom};
 
 /// Strategy for dealing with missing data (expected attribute value is `None`)
@@ -104,22 +106,38 @@ impl Deref for CheckedSelector {
     }
 }
 
+pub struct FuzzerSettings {
+    pub missing_data_strategy: MissingDataStrategy,
+    pub multiple_matches_strategy: MultipleMatchesStrategy,
+
+    /// per document
+    pub random_generation_count: usize,
+    pub random_generation_retries: usize,
+    /// per document
+    pub survivor_count: usize,
+    /// per document
+    pub random_mutation_count: usize,
+}
+
+impl Default for FuzzerSettings {
+    fn default() -> Self {
+        FuzzerSettings {
+            missing_data_strategy: MissingDataStrategy::NodeMustExist,
+            multiple_matches_strategy: MultipleMatchesStrategy::PrioritizeFirstMatch,
+            random_generation_count: 1000,
+            random_generation_retries: 100,
+            survivor_count: 50,
+            random_mutation_count: 50,
+        }
+    }
+}
+
 pub struct Training<'a> {
     documents: Vec<VDom<'a>>,
     document_roots: Vec<NodeHandle>,
     attributes: Vec<Attribute<'a>>,
     selector_pool: HashMap<String, Vec<CheckedSelector>>,
-
-    missing_data_strategy: MissingDataStrategy,
-    multiple_matches_strategy: MultipleMatchesStrategy,
-
-    /// per document
-    random_generation_count: usize,
-    random_generation_retries: usize,
-    /// per document
-    survivor_count: usize,
-    /// per document
-    random_mutation_count: usize,
+    settings: FuzzerSettings
 }
 
 impl<'a> Training<'a> {
@@ -135,21 +153,30 @@ impl<'a> Training<'a> {
         &self.attributes
     }
 
-    pub fn new(documents: Vec<VDom<'a>>, attributes: Vec<Attribute<'a>>) -> Option<Self> {
+    pub fn new(documents: Vec<VDom<'a>>, attributes: Vec<Attribute<'a>>) -> Result<Self> {
+        Self::with_settings(documents, attributes, Default::default())
+    }
+
+    pub fn with_settings(documents: Vec<VDom<'a>>, attributes: Vec<Attribute<'a>>, settings: FuzzerSettings) -> Result<Self> {
         let document_roots = documents
             .iter()
             .filter_map(find_root)
             .copied()
             .collect::<Vec<_>>();
         if document_roots.len() != documents.len() {
-            return None; // Failed to find root in at least one document
+            return Err(anyhow!("Failed to find root node in at least one input document!"));
         }
 
         if attributes
             .iter()
             .any(|attr| attr.values.len() != documents.len())
         {
-            return None; // At least one attribute has an incorrect number of values
+            return Err(anyhow!("At least one attribute has an incorrect number of values!"));
+        }
+
+        let mut unique = HashSet::new();
+        if let Some(duplicate) = attributes.iter().find(|attr| !unique.insert(attr.name.clone())) {
+            return Err(anyhow!("Duplicate attribute {:?}!", duplicate.name));
         }
 
         let training = Training {
@@ -157,15 +184,10 @@ impl<'a> Training<'a> {
             document_roots,
             attributes,
             selector_pool: Default::default(),
-            missing_data_strategy: MissingDataStrategy::NodeMustExist,
-            multiple_matches_strategy: MultipleMatchesStrategy::PrioritizeFirstMatch,
-            random_generation_count: 1000,
-            random_generation_retries: 100,
-            survivor_count: 50,
-            random_mutation_count: 50,
+            settings
         };
 
-        Some(training)
+        Ok(training)
     }
 
     /// Returns the node's text value, which is either its inner text, the value
@@ -222,7 +244,7 @@ impl<'a> Training<'a> {
             let expected = attribute.values[i].as_ref();
 
             if expected.is_none() {
-                match self.missing_data_strategy {
+                match self.settings.missing_data_strategy {
                     MissingDataStrategy::AllowMissingNode => {
                         let ok = node.is_none() || node_text_value.is_none();
                         if !ok {
@@ -267,7 +289,7 @@ impl<'a> Training<'a> {
                         return None;
                     }
                     if target_nodes.len() > 1 {
-                        match self.multiple_matches_strategy {
+                        match self.settings.multiple_matches_strategy {
                             MultipleMatchesStrategy::PrioritizeBestSelector => {
                                 // Randomly select between all target_nodes
                                 random_target_weights =
@@ -297,9 +319,9 @@ impl<'a> Training<'a> {
                         selector_pool.len(),
                         attribute.name
                     );
-                    selector_pool.reserve(self.random_generation_count);
+                    selector_pool.reserve(self.settings.random_generation_count);
                     let start_time = Instant::now();
-                    (0..self.random_generation_count)
+                    (0..self.settings.random_generation_count)
                         .filter_map(|_| {
                             // Choose random target node based on weights
                             let index = if target_nodes.len() == 1 {
@@ -313,7 +335,7 @@ impl<'a> Training<'a> {
                                     target_nodes[index],
                                     self.document_roots[i],
                                     vdom.parser(),
-                                    self.random_generation_retries,
+                                    self.settings.random_generation_retries,
                                     rng,
                                 )
                                 .map(CheckedSelector::new)
@@ -331,13 +353,13 @@ impl<'a> Training<'a> {
                     );
                     trace!(
                         "Generation rate: {} in {}ms, {:.2}/s",
-                        self.random_generation_count,
+                        self.settings.random_generation_count,
                         elapsed_ms,
-                        self.random_generation_count as f32 / elapsed_ms as f32 * 1000.
+                        self.settings.random_generation_count as f32 / elapsed_ms as f32 * 1000.
                     );
                     trace!(
                         "Generation retries avg. {:.2} ({} total)",
-                        searcher.retries_used as f32 / self.random_generation_count as f32,
+                        searcher.retries_used as f32 / self.settings.random_generation_count as f32,
                         searcher.retries_used
                     );
                     selector_pool.dedup_by_key(|selector| selector.to_string());
@@ -373,17 +395,17 @@ impl<'a> Training<'a> {
                         return None;
                     }
                     selector_pool.sort_by_key(|selector| selector.score());
-                    if selector_pool.len() > self.survivor_count {
-                        selector_pool.resize_with(self.survivor_count, || unreachable!());
+                    if selector_pool.len() > self.settings.survivor_count {
+                        selector_pool.resize_with(self.settings.survivor_count, || unreachable!());
                     }
                     trace!("Survivors: {} selectors left", selector_pool.len());
                     let start_time = Instant::now();
-                    for j in 0..usize::min(selector_pool.len(), self.random_mutation_count) {
+                    for j in 0..usize::min(selector_pool.len(), self.settings.random_mutation_count) {
                         let mutated = searcher.mutate_selector(
                             &selector_pool[j],
                             self.document_roots[i],
                             self.documents[i].parser(),
-                            self.random_generation_retries,
+                            self.settings.random_generation_retries,
                             rng,
                         );
                         if let Some(mutated) = mutated {
@@ -403,9 +425,9 @@ impl<'a> Training<'a> {
                     );
                     trace!(
                         "Mutation rate: {} in {}ms, {:.2}/s",
-                        self.random_mutation_count,
+                        self.settings.random_mutation_count,
                         elapsed_ms,
-                        self.random_mutation_count as f32 / elapsed_ms as f32 * 1000.
+                        self.settings.random_mutation_count as f32 / elapsed_ms as f32 * 1000.
                     );
                     selector_pool.dedup_by_key(|selector| selector.to_string());
                     trace!(
@@ -441,8 +463,8 @@ impl<'a> Training<'a> {
 
             document_selectors.dedup_by_key(|selector| selector.to_string());
             document_selectors.sort_by_key(|selector| selector.score());
-            if document_selectors.len() > self.survivor_count {
-                document_selectors.resize_with(self.survivor_count, || unreachable!());
+            if document_selectors.len() > self.settings.survivor_count {
+                document_selectors.resize_with(self.settings.survivor_count, || unreachable!());
             }
 
             info!(
@@ -468,9 +490,9 @@ mod tests {
     use crate::search::{Attribute, MissingDataStrategy, Training};
     use crate::selectors::*;
     use crate::*;
+    use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
     use tl::VDom;
-    use rand::SeedableRng;
 
     const HTML: [&'static str; 2] = [
         r#"
@@ -601,7 +623,7 @@ mod tests {
         let sel2 = Selector::new_from_parts(vec![SelectorPart::Id("2".into())]);
         let sel3 = Selector::new_from_parts(vec![SelectorPart::Id("3".into())]);
 
-        training.missing_data_strategy = MissingDataStrategy::AllowMissingNode;
+        training.settings.missing_data_strategy = MissingDataStrategy::AllowMissingNode;
 
         // Correct values in both documents
         assert!(training
@@ -615,7 +637,7 @@ mod tests {
             .is_ok());
 
         // Correct values in both documents, but node 2 is missing => should error
-        training.missing_data_strategy = MissingDataStrategy::NodeMustExist;
+        training.settings.missing_data_strategy = MissingDataStrategy::NodeMustExist;
         assert!(training
             .check_selector(&sel1, &training.attributes[0], None)
             .is_ok());

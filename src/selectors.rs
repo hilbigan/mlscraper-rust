@@ -1,10 +1,8 @@
-use crate::search::{AttributeBuilder, Training};
 use crate::util;
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use std::fs;
-use rand::prelude::SmallRng;
-use rand::{Rng, SeedableRng};
+
+use rand::Rng;
 use std::fmt::Write;
 use tl::NodeHandle;
 use tl::{HTMLTag, Node, Parser};
@@ -109,8 +107,8 @@ impl SelectorPart {
 #[derive(Clone)]
 pub struct Selector {
     parts: Vec<SelectorPart>,
-    string: String,
-    score: i32,
+    pub string: String,
+    pub score: i32,
 }
 
 impl Selector {
@@ -313,8 +311,9 @@ impl SelectorFuzzer {
 mod tests {
     use crate::selectors::*;
     use crate::util;
+    use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
-    use std::time::Instant;
+
     use tl::VDom;
 
     const HTML: &'static str = r#"
