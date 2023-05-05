@@ -2,7 +2,7 @@ extern crate mlscraper_rust;
 
 use mlscraper_rust::train;
 use mlscraper_rust::selectors::Selector;
-use mlscraper_rust::search::AttributeBuilder;
+use mlscraper_rust::search::{AttributeBuilder, FuzzerSettings};
 use env_logger::Env;
 
 fn main() {
@@ -38,6 +38,11 @@ fn main() {
             && !selector.string.contains("#graph")
             && selector.string.starts_with(".matchTable")
     };
+
+    let mut fuzzer_settings = FuzzerSettings::default();
+    fuzzer_settings.random_generation_count = 500;
+    fuzzer_settings.survivor_count = 100;
+    fuzzer_settings.random_mutation_count = 50;
 
     let result = train(
         htmls.iter().map(|s| s.as_ref()).collect(),
@@ -371,7 +376,7 @@ fn main() {
                 .filter(&filter_matchtable)
                 .build(),
         ],
-        Default::default(),
+        fuzzer_settings,
         3,
     ).expect("training");
 

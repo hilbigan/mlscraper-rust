@@ -137,8 +137,8 @@ impl Default for FuzzerSettings {
             multiple_matches_strategy: MultipleMatchesStrategy::PrioritizeFirstMatch,
             random_generation_count: 1000,
             random_generation_retries: 100,
-            survivor_count: 50,
-            random_mutation_count: 50,
+            survivor_count: 10,
+            random_mutation_count: 20,
             text_retrieval_options: default_text_retrieval_options
         }
     }
