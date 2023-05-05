@@ -8,7 +8,7 @@ use tl::NodeHandle;
 use tl::{HTMLTag, Node, Parser};
 
 #[derive(Clone)]
-pub(crate) enum SelectorPart {
+pub enum SelectorPart {
     Tag(String),
     Class(String),
     Id(String),
@@ -115,7 +115,7 @@ impl Selector {
     /// Create a new selector from multiple SelectorParts.
     /// The parts are interspersed with " > "; this means the element matched by each SelectorPart
     /// must be the *direct parent* of the element matched by the nexted SelectorPart.
-    pub(crate) fn new_from_parts(parts: Vec<SelectorPart>) -> Self {
+    pub fn new_from_parts(parts: Vec<SelectorPart>) -> Self {
         // TODO use intersperse once stabilized
         let string = parts
             .iter()
@@ -132,7 +132,7 @@ impl Selector {
 
     /// Tries to find a node matching this Selector by searching all nodes below
     /// `handle`. A result will be returned iff exactly one element matched.
-    pub(crate) fn try_select(&self, handle: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
+    pub fn try_select(&self, handle: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
         self.parts.iter().fold(Some(handle), |acc, selector| {
             acc.and_then(|node| selector.try_select(node, parser))
         })
@@ -181,13 +181,13 @@ impl ToString for Selector {
     }
 }
 
-pub(crate) struct SelectorFuzzer {
+pub struct SelectorFuzzer {
     root_selector_cache: HashMap<String, Option<NodeHandle>>,
     pub(crate) retries_used: usize,
 }
 
 impl SelectorFuzzer {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         SelectorFuzzer {
             root_selector_cache: HashMap::new(),
             retries_used: 0,
@@ -240,7 +240,7 @@ impl SelectorFuzzer {
 
     /// Recursively generate a random selector for node `handle`. `root` is the root-node
     /// of the subtree.
-    pub(crate) fn random_selector_for_node<R: Rng>(
+    pub fn random_selector_for_node<R: Rng>(
         &mut self,
         handle: NodeHandle,
         root: NodeHandle,

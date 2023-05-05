@@ -27,7 +27,7 @@ pub(crate) fn find_parent(handle: NodeHandle, parser: &Parser) -> Option<NodeHan
 }
 
 /// Find root node handle
-pub(crate) fn find_root<'a>(dom: &'a VDom<'a>) -> Option<&'a NodeHandle> {
+pub fn find_root<'a>(dom: &'a VDom<'a>) -> Option<&'a NodeHandle> {
     dom.children()
         .iter()
         .find(|node| node_is_tag(node, dom.parser()))
@@ -69,9 +69,9 @@ pub(crate) fn get_trimmed_attr_value(tag: &HTMLTag, attr: &str) -> Option<String
 }
 
 /// Searches for a node whose inner text matches the given text.
-/// NOTE that this also inclodes the inner text of any child nodes! See [tag_direct_inner_text].
+/// NOTE that this also includes the inner text of any child nodes! See [tag_direct_inner_text].
 /// Both strings are trimmed before comparison.
-pub(crate) fn find_node_with_text(dom: &VDom, text: &str) -> Option<NodeHandle> {
+pub fn find_node_with_text(dom: &VDom, text: &str) -> Option<NodeHandle> {
     dom.nodes()
         .iter()
         .enumerate()
