@@ -9,10 +9,11 @@ use anyhow::{Result, anyhow};
 
 use crate::selectors::*;
 use crate::util;
-use crate::util::{find_root, get_direct_inner_text, get_trimmed_attr_value};
+use crate::util::{TextRetrievalOption, TextRetrievalOptions, find_root, get_direct_inner_text, get_trimmed_attr_value};
 use tl::{NodeHandle, VDom};
 
 /// Strategy for dealing with missing data (expected attribute value is `None`)
+#[derive(Debug)]
 pub enum MissingDataStrategy {
     /// If an expected attribute value is `None`, we do not expect the selector to match any node.
     AllowMissingNode,
@@ -23,6 +24,7 @@ pub enum MissingDataStrategy {
 }
 
 /// Strategy for dealing with multiple nodes matching the expected attribute value
+#[derive(Debug)]
 pub enum MultipleMatchesStrategy {
     /// Choose the node which results in the best selector
     PrioritizeBestSelector,
@@ -106,6 +108,7 @@ impl Deref for CheckedSelector {
     }
 }
 
+#[derive(Debug)]
 pub struct FuzzerSettings {
     pub missing_data_strategy: MissingDataStrategy,
     pub multiple_matches_strategy: MultipleMatchesStrategy,
@@ -117,10 +120,17 @@ pub struct FuzzerSettings {
     pub survivor_count: usize,
     /// per document
     pub random_mutation_count: usize,
+
+    pub text_retrieval_options: util::TextRetrievalOptions,
 }
 
 impl Default for FuzzerSettings {
     fn default() -> Self {
+        let mut default_text_retrieval_options = TextRetrievalOptions::new();
+        default_text_retrieval_options.push(TextRetrievalOption::InnerText);
+        default_text_retrieval_options.push(TextRetrievalOption::Attribute("title".into()));
+        default_text_retrieval_options.push(TextRetrievalOption::Attribute("alt".into()));
+
         FuzzerSettings {
             missing_data_strategy: MissingDataStrategy::NodeMustExist,
             multiple_matches_strategy: MultipleMatchesStrategy::PrioritizeFirstMatch,
@@ -128,6 +138,7 @@ impl Default for FuzzerSettings {
             random_generation_retries: 100,
             survivor_count: 50,
             random_mutation_count: 50,
+            text_retrieval_options: default_text_retrieval_options
         }
     }
 }
@@ -135,9 +146,14 @@ impl Default for FuzzerSettings {
 #[derive(Debug)]
 pub struct TrainingResult {
     selectors: HashMap<String, Selector>,
+    settings: FuzzerSettings
 }
 
 impl TrainingResult {
+    pub fn selectors(&self) -> &HashMap<String, Selector> {
+        &self.selectors
+    }
+
     pub fn attributes<'a>(&'a self) -> Box<dyn Iterator<Item = &'a str> + 'a> {
         Box::new(self.selectors.keys().map(|s| s.as_ref()))
     }
@@ -148,24 +164,24 @@ impl TrainingResult {
     }
 
     pub fn parse_and_get_value(&self, document: &str, attribute_name: &str) -> Result<Option<String>> {
-        if !self.selectors.contains_key(attribute_name) {
-            return Err(anyhow!("Attribute {:?} not found!", attribute_name));
-        }
-
         let dom = tl::parse(document, tl::ParserOptions::default())?;
         self.get_value(&dom, attribute_name)
     }
 
     pub fn get_value<'a>(&self, dom: &'a VDom<'a>, attribute_name: &str) -> Result<Option<String>> {
+        if !self.selectors.contains_key(attribute_name) {
+            return Err(anyhow!("Attribute {:?} not found!", attribute_name));
+        }
+
         let root = find_root(&dom).ok_or(anyhow!("Could not find root node in document!"))?;
         Ok(self.selectors.get(attribute_name)
            .unwrap()
            .try_select(*root, &dom.parser())
-           .and_then(|node| util::get_node_text(&dom, node)))
+           .and_then(|node| util::get_node_text(&dom, node, &self.settings.text_retrieval_options)))
     }
 
-    pub fn get_selector<'a>(&'a self, attribute: &Attribute) -> Option<&'a str> {
-        self.selectors.get(&attribute.name).map(|selector| selector.string.as_ref())
+    pub fn get_selector<'a>(&'a self, attribute_name: &str) -> Option<&'a str> {
+        self.selectors.get(attribute_name).map(|selector| selector.string.as_ref())
     }
 }
 
@@ -234,7 +250,12 @@ impl<'a> Training<'a> {
             .iter()
             .enumerate()
             .map(|(i, _)| NodeHandle::new(i as u32))
-            .filter(|node| matches!(util::get_node_text(vdom, *node), Some(text) if trim == text))
+            .filter(|node| {
+                matches!(
+                    util::get_node_text(vdom, *node, &self.settings.text_retrieval_options), 
+                    Some(text) if trim == text
+                )
+            })
             .collect()
     }
 
@@ -251,7 +272,7 @@ impl<'a> Training<'a> {
             }
             let node = selector.try_select(self.document_roots[i], self.documents[i].parser());
             let node_text_value =
-                node.and_then(|node| util::get_node_text(&self.documents[i], node));
+                node.and_then(|node| util::get_node_text(&self.documents[i], node, &self.settings.text_retrieval_options));
             let expected = attribute.values[i].as_ref();
 
             if expected.is_none() {
@@ -506,6 +527,7 @@ impl<'a> Training<'a> {
 
         TrainingResult {
             selectors,
+            settings: self.settings
         }
     }
 }
@@ -549,28 +571,32 @@ mod tests {
         assert_eq!(
             util::get_node_text(
                 &training.documents[0],
-                training.documents[0].get_element_by_id("1").unwrap()
+                training.documents[0].get_element_by_id("1").unwrap(),
+                &training.settings.text_retrieval_options
             ),
             Some("blubb".into())
         );
         assert_eq!(
             util::get_node_text(
                 &training.documents[0],
-                training.documents[0].get_element_by_id("2").unwrap()
+                training.documents[0].get_element_by_id("2").unwrap(),
+                &training.settings.text_retrieval_options
             ),
             Some("glogg".into())
         );
         assert_eq!(
             util::get_node_text(
                 &training.documents[0],
-                training.documents[0].get_element_by_id("3").unwrap()
+                training.documents[0].get_element_by_id("3").unwrap(),
+                &training.settings.text_retrieval_options
             ),
             Some("plapp_before".into())
         );
         assert_eq!(
             util::get_node_text(
                 &training.documents[1],
-                training.documents[1].get_element_by_id("1").unwrap()
+                training.documents[1].get_element_by_id("1").unwrap(),
+                &training.settings.text_retrieval_options
             ),
             None
         );
@@ -578,14 +604,16 @@ mod tests {
         assert_eq!(
             util::get_node_text(
                 &training.documents[1],
-                training.documents[1].get_element_by_id("3").unwrap()
+                training.documents[1].get_element_by_id("3").unwrap(),
+                &training.settings.text_retrieval_options
             ),
             Some("plapp_after".into())
         );
         assert_eq!(
             util::get_node_text(
                 &training.documents[0],
-                training.documents[0].get_element_by_id("root").unwrap()
+                training.documents[0].get_element_by_id("root").unwrap(),
+                &training.settings.text_retrieval_options
             ),
             None
         );

@@ -147,27 +147,36 @@ pub(crate) fn random_index_weighted<R: Rng>(rng: &mut R, weights: &[f32]) -> usi
     unreachable!();
 }
 
+#[derive(Debug)]
+pub enum TextRetrievalOption {
+    InnerText,
+    Attribute(String),
+}
+
+pub type TextRetrievalOptions = Vec<TextRetrievalOption>;
+
 /// Returns the node's text value, which is either its inner text, the value
 /// of its "title" attribute, or the value of its "alt" attribute (in that order).
-/// TODO Maybe we want a setting later to control what counts as "text"
-pub fn get_node_text(vdom: &VDom, node: NodeHandle) -> Option<String> {
+pub fn get_node_text(vdom: &VDom, node: NodeHandle, text_retrieval_options: &TextRetrievalOptions) -> Option<String> {
     node.get(vdom.parser())
         .and_then(|node| node.as_tag())
         .and_then(|tag| {
-            let inner_text = get_direct_inner_text(tag, vdom.parser());
-            let trimmed_inner_text = inner_text.trim();
-            if !trimmed_inner_text.is_empty() {
-                return Some(trimmed_inner_text.to_string());
-            }
-
-            let title = get_trimmed_attr_value(tag, "title");
-            if title.is_some() {
-                return title;
-            }
-
-            let alt = get_trimmed_attr_value(tag, "alt");
-            if alt.is_some() {
-                return alt;
+            for option in text_retrieval_options {
+                match option {
+                    TextRetrievalOption::InnerText => {
+                        let inner_text = get_direct_inner_text(tag, vdom.parser());
+                        let trimmed_inner_text = inner_text.trim();
+                        if !trimmed_inner_text.is_empty() {
+                            return Some(trimmed_inner_text.to_string());
+                        }
+                    },
+                    TextRetrievalOption::Attribute(name) => {
+                        let value = get_trimmed_attr_value(tag, &name);
+                        if value.is_some() {
+                            return value;
+                        }
+                    }
+                }
             }
 
             None

@@ -12,6 +12,11 @@ rand = { version = "0.8.5", features = ["small_rng"] }
 rand_chacha = "0.3.1"
 tl = "0.7.7"
 anyhow = "1.0.17"
+bitflags = "2.2.1"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["blocking"] }
+
+[profile.release]
+debug = true
+
