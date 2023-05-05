@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use log::{info, trace, warn, error};
+use log::{info, trace, warn};
 use rand::Rng;
 use std::time::Instant;
 use std::collections::HashSet;
@@ -10,7 +10,7 @@ use anyhow::{Result, anyhow};
 
 use crate::selectors::*;
 use crate::util;
-use crate::util::{TextRetrievalOption, TextRetrievalOptions, find_root, get_direct_inner_text, get_trimmed_attr_value};
+use crate::util::{TextRetrievalOption, TextRetrievalOptions, find_root};
 use tl::{NodeHandle, VDom};
 
 /// Strategy for dealing with missing data (expected attribute value is `None`)
@@ -526,7 +526,7 @@ impl<'a> Training<'a> {
             .map(|selector| selector.selector.clone())
     }
 
-    pub fn to_result(mut self) -> TrainingResult {
+    pub fn to_result(self) -> TrainingResult {
         let selectors = self.attributes.iter().filter_map(|attr| {
             if let Some(selector) = self.get_best_selector_for(&attr) {
                 Some((attr.name.clone(), selector))

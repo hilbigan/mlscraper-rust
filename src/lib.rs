@@ -5,10 +5,10 @@ pub mod selectors;
 pub mod util;
 
 use crate::search::*;
-use crate::selectors::*;
+
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
-use anyhow::{anyhow, Result};
+use anyhow::{Result};
 
 pub fn train<'a, S: Into<&'a str>>(
     mut documents: Vec<S>, 
