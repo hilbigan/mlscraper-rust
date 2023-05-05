@@ -8,13 +8,14 @@ use crate::search::*;
 use crate::selectors::*;
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
+use anyhow::{anyhow, Result};
 
 pub fn train<'a, S: Into<&'a str>>(
     mut documents: Vec<S>, 
     attributes: Vec<Attribute<'a>>, 
     settings: FuzzerSettings,
     iterations: usize)
--> Vec<Option<String>> {
+-> Result<TrainingResult> {
     let doms = documents.drain(..)
         .map(|doc| tl::parse(doc.into(), tl::ParserOptions::default())
              .expect("HTML parsing failed"))
@@ -23,15 +24,12 @@ pub fn train<'a, S: Into<&'a str>>(
         doms,
         attributes,
         settings
-    ).expect("TODO error handling");
+    )?;
     let mut rng = SmallRng::from_entropy();
 
     for _ in 0 .. iterations {
         training.do_one_fuzzing_round(&mut rng);
     }
 
-    training.attributes().iter()
-        .map(|attr| training.get_best_selector_for(attr))
-        .map(|selector| selector.map(|sel| sel.to_string()))
-        .collect()
+    Ok(training.to_result())
 }

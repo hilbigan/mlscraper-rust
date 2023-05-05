@@ -163,6 +163,12 @@ impl Selector {
     }
 }
 
+impl std::fmt::Debug for Selector {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(fmt, "{}", self.string)
+    }
+}
+
 impl From<SelectorPart> for Selector {
     fn from(value: SelectorPart) -> Self {
         Selector::new_from_parts(vec![value])

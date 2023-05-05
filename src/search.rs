@@ -18,7 +18,7 @@ pub enum MissingDataStrategy {
     AllowMissingNode,
 
     /// If an expected attribute value is `None`, the node must still exist, and it text value
-    /// (see [Training::get_node_text]) must be `None` (empty text).
+    /// (see [util::get_node_text]) must be `None` (empty text).
     NodeMustExist,
 }
 
@@ -132,6 +132,43 @@ impl Default for FuzzerSettings {
     }
 }
 
+#[derive(Debug)]
+pub struct TrainingResult {
+    selectors: HashMap<String, Selector>,
+}
+
+impl TrainingResult {
+    pub fn attributes<'a>(&'a self) -> Box<dyn Iterator<Item = &'a str> + 'a> {
+        Box::new(self.selectors.keys().map(|s| s.as_ref()))
+    }
+
+    pub fn parse<'s>(&self, document: &'s str) -> Result<VDom<'s>> {
+        tl::parse(document, tl::ParserOptions::default())
+            .map_err(|_| anyhow!("Failed to parse document!"))
+    }
+
+    pub fn parse_and_get_value(&self, document: &str, attribute_name: &str) -> Result<Option<String>> {
+        if !self.selectors.contains_key(attribute_name) {
+            return Err(anyhow!("Attribute {:?} not found!", attribute_name));
+        }
+
+        let dom = tl::parse(document, tl::ParserOptions::default())?;
+        self.get_value(&dom, attribute_name)
+    }
+
+    pub fn get_value<'a>(&self, dom: &'a VDom<'a>, attribute_name: &str) -> Result<Option<String>> {
+        let root = find_root(&dom).ok_or(anyhow!("Could not find root node in document!"))?;
+        Ok(self.selectors.get(attribute_name)
+           .unwrap()
+           .try_select(*root, &dom.parser())
+           .and_then(|node| util::get_node_text(&dom, node)))
+    }
+
+    pub fn get_selector<'a>(&'a self, attribute: &Attribute) -> Option<&'a str> {
+        self.selectors.get(&attribute.name).map(|selector| selector.string.as_ref())
+    }
+}
+
 pub struct Training<'a> {
     documents: Vec<VDom<'a>>,
     document_roots: Vec<NodeHandle>,
@@ -190,32 +227,6 @@ impl<'a> Training<'a> {
         Ok(training)
     }
 
-    /// Returns the node's text value, which is either its inner text, the value
-    /// of its "title" attribute, or the value of its "alt" attribute (in that order).
-    /// TODO Maybe we want a setting later to control what counts as "text"
-    fn get_node_text(&self, vdom: &VDom, node: NodeHandle) -> Option<String> {
-        node.get(vdom.parser())
-            .and_then(|node| node.as_tag())
-            .and_then(|tag| {
-                let inner_text = get_direct_inner_text(tag, vdom.parser());
-                let trimmed_inner_text = inner_text.trim();
-                if !trimmed_inner_text.is_empty() {
-                    return Some(trimmed_inner_text.to_string());
-                }
-
-                let title = get_trimmed_attr_value(tag, "title");
-                if title.is_some() {
-                    return title;
-                }
-
-                let alt = get_trimmed_attr_value(tag, "alt");
-                if alt.is_some() {
-                    return alt;
-                }
-
-                None
-            })
-    }
 
     fn find_all_nodes_with_text(&self, vdom: &VDom, text: &str) -> Vec<NodeHandle> {
         let trim = text.trim();
@@ -223,7 +234,7 @@ impl<'a> Training<'a> {
             .iter()
             .enumerate()
             .map(|(i, _)| NodeHandle::new(i as u32))
-            .filter(|node| matches!(self.get_node_text(vdom, *node), Some(text) if trim == text))
+            .filter(|node| matches!(util::get_node_text(vdom, *node), Some(text) if trim == text))
             .collect()
     }
 
@@ -240,7 +251,7 @@ impl<'a> Training<'a> {
             }
             let node = selector.try_select(self.document_roots[i], self.documents[i].parser());
             let node_text_value =
-                node.and_then(|node| self.get_node_text(&self.documents[i], node));
+                node.and_then(|node| util::get_node_text(&self.documents[i], node));
             let expected = attribute.values[i].as_ref();
 
             if expected.is_none() {
@@ -483,6 +494,20 @@ impl<'a> Training<'a> {
             .and_then(|selectors| selectors.get(0))
             .map(|selector| selector.selector.clone())
     }
+
+    pub fn to_result(mut self) -> TrainingResult {
+        let selectors = self.attributes.iter().filter_map(|attr| {
+            if let Some(selector) = self.get_best_selector_for(&attr) {
+                Some((attr.name.clone(), selector))
+            } else {
+                None
+            }
+        }).collect();
+
+        TrainingResult {
+            selectors,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -522,28 +547,28 @@ mod tests {
         let (dom0, dom1) = get_simple_example();
         let training = Training::new(vec![dom0, dom1], vec![]).unwrap();
         assert_eq!(
-            training.get_node_text(
+            util::get_node_text(
                 &training.documents[0],
                 training.documents[0].get_element_by_id("1").unwrap()
             ),
             Some("blubb".into())
         );
         assert_eq!(
-            training.get_node_text(
+            util::get_node_text(
                 &training.documents[0],
                 training.documents[0].get_element_by_id("2").unwrap()
             ),
             Some("glogg".into())
         );
         assert_eq!(
-            training.get_node_text(
+            util::get_node_text(
                 &training.documents[0],
                 training.documents[0].get_element_by_id("3").unwrap()
             ),
             Some("plapp_before".into())
         );
         assert_eq!(
-            training.get_node_text(
+            util::get_node_text(
                 &training.documents[1],
                 training.documents[1].get_element_by_id("1").unwrap()
             ),
@@ -551,14 +576,14 @@ mod tests {
         );
         assert_eq!(training.documents[1].get_element_by_id("2"), None);
         assert_eq!(
-            training.get_node_text(
+            util::get_node_text(
                 &training.documents[1],
                 training.documents[1].get_element_by_id("3").unwrap()
             ),
             Some("plapp_after".into())
         );
         assert_eq!(
-            training.get_node_text(
+            util::get_node_text(
                 &training.documents[0],
                 training.documents[0].get_element_by_id("root").unwrap()
             ),
