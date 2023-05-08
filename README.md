@@ -103,6 +103,9 @@ that work on *all* the input documents for all the provided values.
 - **Proper handling of missing data**: We allow values to be missing from
     some training examples and provide different strategies of
     handling these cases (see `MissingDataStrategy`).
+- **Proper handling of duplicate data**: If a value is present multiple
+    time, you can control which elements should be preferrably selected
+    (see `MultipleMatchesStrategy`).
 - **Filtering**: You can add custom filters and prioritization to control
     what kind of CSS selectors are generated!
 
