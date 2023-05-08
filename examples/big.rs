@@ -5,6 +5,7 @@ use mlscraper_rust::selectors::Selector;
 use mlscraper_rust::search::{AttributeBuilder, FuzzerSettings};
 use env_logger::Env;
 use std::fs;
+use std::time::Instant;
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
@@ -43,6 +44,7 @@ fn main() {
     let mut fuzzer_settings = FuzzerSettings::default();
     fuzzer_settings.random_generation_count = 1000;
 
+    let start_time = Instant::now();
     let result = train(
         htmls.iter().map(|s| s.as_ref()).collect(),
         vec![
@@ -122,46 +124,46 @@ fn main() {
                 .values(&[Some("Bob de Bertus"), Some("Zentaru"), Some("Oligor")])
                 .filter(&filter)
                 .build(),
-            AttributeBuilder::new("summoner0rank")
-                .values(&[Some("Bronze I"), Some("Silver IV"), Some("Bronze II")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner1rank")
-                .values(&[Some("Unranked"), Some("Unranked"), Some("Bronze IV")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner2rank")
-                .values(&[Some("Bronze I"), Some("Silver IV"), Some("Bronze IV")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner3rank")
-                .values(&[Some("Silver IV"), Some("Silver IV"), Some("Bronze II")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner4rank")
-                .values(&[Some("Bronze IV"), Some("Unranked"), Some("Bronze IV")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner5rank")
-                .values(&[Some("Bronze II"), Some("Silver III"), Some("Bronze IV")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner6rank")
-                .values(&[Some("Silver IV"), Some("Bronze IV"), Some("Bronze II")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner7rank")
-                .values(&[Some("Bronze II"), Some("Bronze IV"), Some("Bronze IV")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner8rank")
-                .values(&[Some("Silver IV"), Some("Bronze I"), Some("Unranked")])
-                .filter(&filter)
-                .build(),
-            AttributeBuilder::new("summoner9rank")
-                .values(&[Some("Bronze IV"), Some("Bronze II"), Some("Bronze III")])
-                .filter(&filter)
-                .build(),
+            //AttributeBuilder::new("summoner0rank")
+            //    .values(&[Some("Bronze I"), Some("Silver IV"), Some("Bronze II")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner1rank")
+            //    .values(&[Some("Unranked"), Some("Unranked"), Some("Bronze IV")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner2rank")
+            //    .values(&[Some("Bronze I"), Some("Silver IV"), Some("Bronze IV")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner3rank")
+            //    .values(&[Some("Silver IV"), Some("Silver IV"), Some("Bronze II")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner4rank")
+            //    .values(&[Some("Bronze IV"), Some("Unranked"), Some("Bronze IV")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner5rank")
+            //    .values(&[Some("Bronze II"), Some("Silver III"), Some("Bronze IV")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner6rank")
+            //    .values(&[Some("Silver IV"), Some("Bronze IV"), Some("Bronze II")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner7rank")
+            //    .values(&[Some("Bronze II"), Some("Bronze IV"), Some("Bronze IV")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner8rank")
+            //    .values(&[Some("Silver IV"), Some("Bronze I"), Some("Unranked")])
+            //    .filter(&filter)
+            //    .build(),
+            //AttributeBuilder::new("summoner9rank")
+            //    .values(&[Some("Bronze IV"), Some("Bronze II"), Some("Bronze III")])
+            //    .filter(&filter)
+            //    .build(),
             AttributeBuilder::new("summoner0champion")
                 .values(&[Some("Yorick"), Some("Tryndamere"), Some("Jax")])
                 .filter(&filter)
@@ -378,6 +380,7 @@ fn main() {
         fuzzer_settings,
         3,
     ).expect("training");
+    println!("Elapsed training time: {} ms", start_time.elapsed().as_millis());
 
     let new_page = client.get("https://www.leagueofgraphs.com/match/kr/6481506591")
         .header("User-Agent", USER_AGENT)
@@ -395,10 +398,9 @@ fn main() {
 
     for i in 0 .. 10 {
         println!(
-            "Player {i}: {:?} ({:?}, {:?}), K/D/A: {:?}/{:?}/{:?}",
+            "Player {i}: {:?} ({:?}), K/D/A: {:?}/{:?}/{:?}",
             result.get_value(&new_dom, &format!("summoner{i}")).ok().flatten().unwrap_or("N/A".into()),
             result.get_value(&new_dom, &format!("summoner{i}champion")).ok().flatten().unwrap_or("N/A".into()),
-            result.get_value(&new_dom, &format!("summoner{i}rank")).ok().flatten().unwrap_or("N/A".into()),
             result.get_value(&new_dom, &format!("summoner{i}kills")).ok().flatten().unwrap_or("N/A".into()),
             result.get_value(&new_dom, &format!("summoner{i}deaths")).ok().flatten().unwrap_or("N/A".into()),
             result.get_value(&new_dom, &format!("summoner{i}assists")).ok().flatten().unwrap_or("N/A".into())
