@@ -144,7 +144,7 @@ pub(crate) fn random_index_weighted<R: Rng>(rng: &mut R, weights: &[f32]) -> usi
             return i;
         }
     }
-    unreachable!();
+    panic!("{:?} {} {}", weights, random, sum);
 }
 
 #[derive(Debug)]

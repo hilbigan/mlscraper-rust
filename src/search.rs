@@ -34,6 +34,7 @@ pub enum MultipleMatchesStrategy {
     PrioritizeFirstMatch,
 }
 
+/// Utility struct for constructing Attributes.
 pub struct AttributeBuilder<'a> {
     name: String,
     values: Option<Vec<Option<String>>>,
@@ -73,6 +74,18 @@ impl<'a> AttributeBuilder<'a> {
     }
 }
 
+/// An attribute of a (multiple) web page(s) that is to be scraped.
+/// It is recommended to use [AttributeBuilder] to construct [Attribute]s.
+///
+/// Must have a user-defined arbitrary but unique name for identification
+/// purposes.
+///
+/// Must have one value per document (although this value may be `None` if
+/// no value is expected on a particular document). The order of the values
+/// must be consistent with the order of the documents as passed to [Training].
+///
+/// Additionally, a filter function may be defined. A selector for this attribute
+/// is only considered valid if the filter function returns true on it.
 pub struct Attribute<'a> {
     pub(crate) name: String,
     pub(crate) values: Vec<Option<String>>,

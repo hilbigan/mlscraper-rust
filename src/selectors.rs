@@ -155,10 +155,37 @@ impl Selector {
         })
     }
 
+    pub fn try_select_with_skip_path(&self, handle: NodeHandle, parser: &Parser, skip: usize, max_len: usize) -> Vec<Option<NodeHandle>> {
+        self.parts.iter().skip(skip).fold(vec![], |mut path, selector| {
+            if path.len() >= max_len {
+                return path;
+            }
+
+            // Continue from last node or root node
+            let last = if path.is_empty() {
+                Some(handle)
+            } else {
+                *path.last().unwrap()
+            };
+
+            if let Some(last_node) = last {
+                path.push(selector.try_select(last_node, parser));
+            } else {
+                path.push(None);
+            }
+
+            path
+        })
+    }
+
     /// Tries to find a node matching this Selector by searching all nodes below
     /// `handle`. A result will be returned iff exactly one element matched.
     pub fn try_select(&self, handle: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
         self.try_select_with_skip(handle, parser, 0)
+    }
+
+    pub fn try_select_path(&self, handle: NodeHandle, parser: &Parser, max_len: usize) -> Vec<Option<NodeHandle>> {
+        self.try_select_with_skip_path(handle, parser, 0, max_len)
     }
 
     pub(crate) fn score(&self) -> i32 {
@@ -209,19 +236,42 @@ pub(crate) struct SelectorCache {
 }
 
 impl SelectorCache {
+    /// Enable/disable caching
+    const ENABLED: bool = true;
+
+    /// Whether we always cache the "leaf node", i.e. the "deepest" result of the selector
+    const ALWAYS_CACHE_LEAF: bool = true;
+    
+    /// If AGGRESSIVE_ADD_MAX_DEPTH is > 0, cache elements up to a depth of 
+    /// AGGRESSIVE_ADD_MAX_DEPTH from the root node even if they have not
+    /// been explicitely requested.
+    const AGGRESSIVE_ADD_MAX_DEPTH: usize = 4;
+
     pub(crate) fn new() -> Self {
         SelectorCache {
             selector_cache: Default::default()
         }
     }
 
+    /// Tries to select a target node by applying the selector to root.
+    /// Uses a Trie to cache and reuse partial results.
     pub(crate) fn try_select(&mut self, selector: &Selector, root: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
-        let should_cache = true || selector.len() < 5;
         if let Some((ancestor_length, ancestor_handle)) = self.selector_cache.get_ancestor_value(selector) {
             if ancestor_handle.is_some() && *ancestor_length < selector.len() {
                 let target = selector.try_select_with_skip(ancestor_handle.unwrap(), parser, *ancestor_length);
-                if should_cache {
-                    self.selector_cache.insert(selector.clone(), (selector.len(), target));
+                if SelectorCache::ENABLED {
+                    let len = *ancestor_length;
+                    if SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH > len {
+                        selector.try_select_with_skip_path(ancestor_handle.unwrap(), parser, len, SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH - len)
+                            .iter()
+                            .enumerate()
+                            .for_each(|(i, subnode)| {
+                                self.selector_cache.insert(selector.split_at(len+i+1).0, (len+i+1, *subnode));
+                            });
+                    }
+                    if SelectorCache::ALWAYS_CACHE_LEAF && SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH - len < selector.len() {
+                        self.selector_cache.insert(selector.clone(), (selector.len(), target));
+                    }
                 }
                 target
             } else {
@@ -229,8 +279,18 @@ impl SelectorCache {
             }
         } else {
             let target = selector.try_select(root, parser);
-            if should_cache {
-                self.selector_cache.insert(selector.clone(), (selector.len(), target));
+            if SelectorCache::ENABLED {
+                if SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH > 0 {
+                    selector.try_select_path(root, parser, SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH)
+                        .iter()
+                        .enumerate()
+                        .for_each(|(i, subnode)| {
+                            self.selector_cache.insert(selector.split_at(i+1).0, (i+1, *subnode));
+                        });
+                }
+                if SelectorCache::ALWAYS_CACHE_LEAF && SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH < selector.len() {
+                    self.selector_cache.insert(selector.clone(), (selector.len(), target));
+                }
             }
             target
         }
@@ -249,47 +309,6 @@ impl SelectorFuzzer {
             retries_used: 0,
         }
     }
-
-    ///// Equivalent to selector.try_select(root, parser), but with an additional caching layer.
-    //fn try_select_from_root(
-    //    &mut self,
-    //    selector: &Selector,
-    //    root: NodeHandle,
-    //    parser: &Parser,
-    //) -> Option<NodeHandle> {
-    //    let should_cache = selector.len() < 5;
-    //    if let Some((ancestor_length, ancestor_handle)) = self.root_selector_cache.get_ancestor_value(selector) {
-    //        if ancestor_handle.is_some() && *ancestor_length < selector.len() {
-    //            let target = selector.try_select_with_skip(ancestor_handle.unwrap(), parser, *ancestor_length);
-    //            if should_cache {
-    //                self.root_selector_cache.insert(selector.clone(), (selector.len(), target));
-    //            }
-    //            target
-    //        } else {
-    //            *ancestor_handle
-    //        }
-    //    } else {
-    //        let target = selector.try_select(root, parser);
-    //        if should_cache {
-    //            self.root_selector_cache.insert(selector.clone(), (selector.len(), target));
-    //        }
-    //        target
-    //    }
-
-    //    //let should_cache = selector.parts.len() < 7;
-    //    //if should_cache {
-    //    //    let selector_str = selector.to_string();
-    //    //    if !self.root_selector_cache.contains_key(&selector_str) {
-    //    //        let result = selector.try_select(root, parser);
-    //    //        self.root_selector_cache.insert(selector_str, result);
-    //    //        result
-    //    //    } else {
-    //    //        *self.root_selector_cache.get(&selector_str).unwrap()
-    //    //    }
-    //    //} else {
-    //    //    selector.try_select(root, parser)
-    //    //}
-    //}
 
     /// Attempt to create a new selector by mutating the given input selector.
     /// Mutating in this case means we split the selector at a random point and create a new
