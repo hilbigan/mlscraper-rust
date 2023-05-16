@@ -106,7 +106,9 @@ that work on *all* the input documents for all the provided values.
 - **Proper handling of duplicate data**: If a value is present multiple
     time, you can control which elements should be preferrably selected
     (see `MultipleMatchesStrategy`).
-- **Filtering**: You can add custom filters and prioritization to control
+- **Configurable data sources**: You can define what should count as the "text"
+    of an HTML tag.
+- **Filtering**: You can add custom filters to control
     what kind of CSS selectors are generated!
 
 ### Performance Comparison
