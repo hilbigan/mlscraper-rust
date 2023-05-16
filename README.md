@@ -109,6 +109,27 @@ that work on *all* the input documents for all the provided values.
 - **Filtering**: You can add custom filters and prioritization to control
     what kind of CSS selectors are generated!
 
+### Performance Comparison
+
+We compare `mlscraper` and `mlscraper_rust`'s performance on two Amazon 
+product pages ([Apple iPhone](https://www.amazon.com/Apple-iPhone-11-64GB-Black/dp/B07ZPKN6YR),
+[Samsung Galaxy](https://www.amazon.com/Samsung-Galaxy-S21-5G-Version/dp/B08VLMQ3KS)) which
+have been downloaded to `python_comparison/{amazon_iphone, amazon_galaxy}.html`.
+
+You can read the used benchmarking code in `python_comparison/amazon.py`
+(original mlscraper python library) and `examples/amazon.rs` (ours).
+
+We compare the time each method takes for "training", i.e., generating suitable
+selectors. We use the average time of five runs.
+
+Scraping Task              Time Original mlscraper      Time Ours (ms)       x    Selector Original    Selector Ours
+-------------------------- ---------------------------- -------------------- ---- -------------------- -----------------------------------------
+Extract product name       1771 ms                      25 ms                71x  #landingImage        #landingImage or #landingImage
+Extract product price      1122 ms                      21 ms                53x  #base-product-price  #base-product-price
+Name + price at once       6193 ms                      34 ms                182x as above             as above
+Find "Add to Cart" button  ? (> 5 min)                  16 ms                -    -                    #comparison_add_to_cart_button3-announce
+
+
 ## Large-scale Example
 
 All of these advantages are demonstrated in the large-scale example `big.rs`
