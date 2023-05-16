@@ -95,9 +95,9 @@ that work on *all* the input documents for all the provided values.
 
 - **Better performance**: Instead of testing $O(2^n)$ possible selectors,
     we generate CSS selectors randomly and improve them iteratively
-    using a basic genetic algorithm.
-- **Smaller footprint**: mlscraper (Python) was killed by oomkiller on my
-    machine while processing a 30kb HTML file. This version has no problems
+    using a basic genetic algorithm. See performance comparison below.
+- **Smaller footprint**: mlscraper (Python) was on occasion killed by oomkiller on my
+    machine while processing a 30kb HTML file. Our implementation has no problems
     with many documents and attributes (although we could use some 
     Multithreading) -- see `examples/big.rs`.
 - **Proper handling of missing data**: We allow values to be missing from
