@@ -3,7 +3,7 @@
 ## Generate CSS selectors for web scraping automagically
 
 This project is inspired by the python package [mlscraper](https://github.com/lorey/mlscraper),
-which was insufficient for my use case.
+but uses a different, more scalable and configurable approach to achieve equally good results.
 
 ## Example
 
