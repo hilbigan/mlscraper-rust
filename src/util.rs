@@ -68,6 +68,21 @@ pub(crate) fn get_trimmed_attr_value(tag: &HTMLTag, attr: &str) -> Option<String
     None
 }
 
+pub(crate) fn get_trimmed_attr_prefix_value(tag: &HTMLTag, attr_prefix: &str) -> Option<String> {
+    let attrv = tag.attributes()
+        .iter()
+        .find(|(attr, _)| attr.starts_with(attr_prefix))
+        .map(|(_, val)| val)
+        .flatten();
+    if let Some(attrv) = attrv {
+        let trimmed_attrv = attrv.trim();
+        if !trimmed_attrv.is_empty() {
+            return Some(trimmed_attrv.to_string());
+        }
+    }
+    None
+}
+
 /// Searches for a node whose inner text matches the given text.
 /// NOTE that this also includes the inner text of any child nodes! See [tag_direct_inner_text].
 /// Both strings are trimmed before comparison.
@@ -151,6 +166,7 @@ pub(crate) fn random_index_weighted<R: Rng>(rng: &mut R, weights: &[f32]) -> usi
 pub enum TextRetrievalOption {
     InnerText,
     Attribute(String),
+    AttributeStartsWith(String)
 }
 
 pub type TextRetrievalOptions = Vec<TextRetrievalOption>;
@@ -172,6 +188,12 @@ pub fn get_node_text(vdom: &VDom, node: NodeHandle, text_retrieval_options: &Tex
                     },
                     TextRetrievalOption::Attribute(name) => {
                         let value = get_trimmed_attr_value(tag, &name);
+                        if value.is_some() {
+                            return value;
+                        }
+                    }
+                    TextRetrievalOption::AttributeStartsWith(prefix) => {
+                        let value = get_trimmed_attr_prefix_value(tag, &prefix);
                         if value.is_some() {
                             return value;
                         }
