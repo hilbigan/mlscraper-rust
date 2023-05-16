@@ -122,12 +122,13 @@ You can read the used benchmarking code in `python_comparison/amazon.py`
 We compare the time each method takes for "training", i.e., generating suitable
 selectors. We use the average time of five runs.
 
-Scraping Task              Time Original mlscraper      Time Ours (ms)       x    Selector Original    Selector Ours
--------------------------- ---------------------------- -------------------- ---- -------------------- -----------------------------------------
-Extract product name       1771 ms                      25 ms                71x  #landingImage        #landingImage or #landingImage
-Extract product price      1122 ms                      21 ms                53x  #base-product-price  #base-product-price
-Name + price at once       6193 ms                      34 ms                182x as above             as above
-Find "Add to Cart" button  ? (> 5 min)                  16 ms                -    -                    #comparison_add_to_cart_button3-announce
+
+|Scraping Task             |Time Original mlscraper     |Time Ours            |Speed-Up|Selector Original mlscraper     |Selector Ours
+|--------------------------|----------------------------|-------------------- |:------:|------------------------------- |-----------------------------------------
+|Extract product name      |1771 ms                     |25 ms                |**71x** |`#landingImage`                 |`#landingImage` or `#comparison_image`
+|Extract product price     |1122 ms                     |21 ms                |**53x** |`#base-product-price`           |`#base-product-price`
+|Name + price at once      |6193 ms                     |34 ms                |**182x**|as above                        |as above
+|Find "Add to Cart" button |? (> 5 min)                 |16 ms                |-       |-                               |`#comparison_add_to_cart_button3-announce`
 
 
 ## Large-scale Example
