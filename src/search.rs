@@ -815,7 +815,18 @@ mod tests {
         )
         .unwrap();
 
+        training.settings.missing_data_strategy = MissingDataStrategy::AllowMissingNode;
+
         let mut rng = ChaCha8Rng::seed_from_u64(1337);
         training.do_one_fuzzing_round(&mut rng);
+
+        let result = training.to_result();
+        let (dom0, dom1) = get_simple_example();
+        assert_eq!(result.get_value(&dom0, "attr1").unwrap_or(None), Some("blubb".into()));
+        assert_eq!(result.get_value(&dom0, "attr2").unwrap_or(None), Some("glogg".into()));
+        assert_eq!(result.get_value(&dom0, "attr3").unwrap_or(None), Some("plapp_before".into()));
+        assert_eq!(result.get_value(&dom1, "attr1").unwrap_or(None), None);
+        assert_eq!(result.get_value(&dom1, "attr2").unwrap_or(None), None);
+        assert_eq!(result.get_value(&dom1, "attr3").unwrap_or(None), Some("plapp_after".into()));
     }
 }
