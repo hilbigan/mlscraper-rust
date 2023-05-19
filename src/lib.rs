@@ -13,12 +13,15 @@ use anyhow::{Result};
 /// Find suitable selectors for `attributes` in HTML documents `documents`. 
 ///
 /// The number of `iterations`
-/// is the number of generations the genetic algorithm should produce.
+/// is the number of generations the fuzzing algorithm should produce.
 /// In our experience, a very low number (1-3) of iterations should be 
 /// sufficient for most input HTML documents. If a document has a very
 /// deep, nested structure, a higher number of iterations may be necessary.
 ///
-/// Further settings can be adjusted with `FuzzerSettings`.
+/// Further settings can be adjusted with `FuzzerSettings`. If the generated
+/// selectors are not satisfactory, you can experiment with increasing the
+/// `random_generation_count`, `random_generation_retries` and other settings.
+/// Note that this may impact the training time.
 ///
 /// The returned `TrainingResult` can be used to retrieve the generated
 /// selectors or to automatically extract information from previously

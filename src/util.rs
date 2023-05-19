@@ -68,6 +68,7 @@ pub(crate) fn get_trimmed_attr_value(tag: &HTMLTag, attr: &str) -> Option<String
     None
 }
 
+/// Returns the trimmed value of the first attribute whose name starts with `attr_prefix`,
 pub(crate) fn get_trimmed_attr_prefix_value(tag: &HTMLTag, attr_prefix: &str) -> Option<String> {
     let attrv = tag.attributes()
         .iter()
@@ -159,13 +160,21 @@ pub(crate) fn random_index_weighted<R: Rng>(rng: &mut R, weights: &[f32]) -> usi
             return i;
         }
     }
-    panic!("{:?} {} {}", weights, random, sum);
+    panic!("this should not happen: {:?} {} {}", weights, random, sum);
 }
 
+/// Different options for retrieving text from a node.
+/// We generate selectors for every node that yields text that matches the expected attribute value.
 #[derive(Debug)]
 pub enum TextRetrievalOption {
+    /// Consider the node's inner text (see [get_direct_inner_text]) as text.
     InnerText,
+    /// Consider the value of the given attribute as text.
+    /// For example, Attribute("title"") will consider the value of the "title" attribute as searchable text.
     Attribute(String),
+    /// Consider the value of the first attribute whose name starts with the given prefix as text.
+    /// For example, AttributeStartsWith("data-") will consider the value of the first attribute whose name
+    /// starts with "data-" as searchable text.
     AttributeStartsWith(String)
 }
 

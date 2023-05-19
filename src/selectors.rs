@@ -56,7 +56,7 @@ impl SelectorPart {
     }
 
     /// Tries to find a node matching this SelectorPart by searching all children starting
-    /// from `node`. A result will be returned iff exactly one element matched.
+    /// from `node`. A value will be returned iff exactly one element matched.
     fn try_select(&self, node: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
         let tag = node.get(parser)?.as_tag()?;
 
