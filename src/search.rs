@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
+use anyhow::{anyhow, Result};
 use log::{info, trace, warn};
 use rand::Rng;
-use std::time::Instant;
-use std::collections::HashSet;
 use std::cell::RefCell;
-use anyhow::{Result, anyhow};
+use std::collections::HashSet;
+use std::time::Instant;
 
 use crate::selectors::*;
 use crate::util;
-use crate::util::{TextRetrievalOption, TextRetrievalOptions, find_root};
+use crate::util::{find_root, TextRetrievalOption, TextRetrievalOptions};
 use tl::{NodeHandle, VDom};
 
 /// Strategy for dealing with missing data (expected attribute value is `None`)
@@ -165,7 +165,7 @@ impl Default for FuzzerSettings {
             random_generation_retries: 100,
             survivor_count: 10,
             random_mutation_count: 20,
-            text_retrieval_options: default_text_retrieval_options
+            text_retrieval_options: default_text_retrieval_options,
         }
     }
 }
@@ -186,7 +186,7 @@ impl Default for FuzzerSettings {
 #[derive(Debug)]
 pub struct TrainingResult {
     selectors: HashMap<String, Selector>,
-    settings: FuzzerSettings
+    settings: FuzzerSettings,
 }
 
 impl TrainingResult {
@@ -207,7 +207,11 @@ impl TrainingResult {
 
     /// Parse a document and return the value of the given attribute.
     /// This is equivalent to calling [parse] and then [get_value].
-    pub fn parse_and_get_value(&self, document: &str, attribute_name: &str) -> Result<Option<String>> {
+    pub fn parse_and_get_value(
+        &self,
+        document: &str,
+        attribute_name: &str,
+    ) -> Result<Option<String>> {
         let dom = tl::parse(document, tl::ParserOptions::default())?;
         self.get_value(&dom, attribute_name)
     }
@@ -219,15 +223,21 @@ impl TrainingResult {
         }
 
         let root = find_root(&dom).ok_or(anyhow!("Could not find root node in document!"))?;
-        Ok(self.selectors.get(attribute_name)
-           .unwrap()
-           .try_select(*root, &dom.parser())
-           .and_then(|node| util::get_node_text(&dom, node, &self.settings.text_retrieval_options)))
+        Ok(self
+            .selectors
+            .get(attribute_name)
+            .unwrap()
+            .try_select(*root, &dom.parser())
+            .and_then(|node| {
+                util::get_node_text(&dom, node, &self.settings.text_retrieval_options)
+            }))
     }
 
     /// Get the best selector for the given attribute.
     pub fn get_selector<'a>(&'a self, attribute_name: &str) -> Option<&'a str> {
-        self.selectors.get(attribute_name).map(|selector| selector.string.as_ref())
+        self.selectors
+            .get(attribute_name)
+            .map(|selector| selector.string.as_ref())
     }
 
     /// Highlight the selected elements for the given attribute in the given DOM object
@@ -257,7 +267,7 @@ pub struct Training<'a> {
     document_selector_caches: Vec<RefCell<SelectorCache>>,
     attributes: Vec<Attribute<'a>>,
     selector_pool: HashMap<String, Vec<CheckedSelector>>,
-    settings: FuzzerSettings
+    settings: FuzzerSettings,
 }
 
 impl<'a> Training<'a> {
@@ -279,25 +289,36 @@ impl<'a> Training<'a> {
         Self::with_settings(documents, attributes, Default::default())
     }
 
-    pub fn with_settings(documents: Vec<VDom<'a>>, attributes: Vec<Attribute<'a>>, settings: FuzzerSettings) -> Result<Self> {
+    pub fn with_settings(
+        documents: Vec<VDom<'a>>,
+        attributes: Vec<Attribute<'a>>,
+        settings: FuzzerSettings,
+    ) -> Result<Self> {
         let document_roots = documents
             .iter()
             .filter_map(find_root)
             .copied()
             .collect::<Vec<_>>();
         if document_roots.len() != documents.len() {
-            return Err(anyhow!("Failed to find root node in at least one input document!"));
+            return Err(anyhow!(
+                "Failed to find root node in at least one input document!"
+            ));
         }
 
         if attributes
             .iter()
             .any(|attr| attr.values.len() != documents.len())
         {
-            return Err(anyhow!("At least one attribute has an incorrect number of values!"));
+            return Err(anyhow!(
+                "At least one attribute has an incorrect number of values!"
+            ));
         }
 
         let mut unique = HashSet::new();
-        if let Some(duplicate) = attributes.iter().find(|attr| !unique.insert(attr.name.clone())) {
+        if let Some(duplicate) = attributes
+            .iter()
+            .find(|attr| !unique.insert(attr.name.clone()))
+        {
             return Err(anyhow!("Duplicate attribute {:?}!", duplicate.name));
         }
 
@@ -312,7 +333,7 @@ impl<'a> Training<'a> {
             document_selector_caches,
             attributes,
             selector_pool: Default::default(),
-            settings
+            settings,
         };
 
         Ok(training)
@@ -328,7 +349,7 @@ impl<'a> Training<'a> {
             .map(|(i, _)| NodeHandle::new(i as u32))
             .filter(|node| {
                 matches!(
-                    util::get_node_text(vdom, *node, &self.settings.text_retrieval_options), 
+                    util::get_node_text(vdom, *node, &self.settings.text_retrieval_options),
                     Some(text) if trim == text
                 )
             })
@@ -346,11 +367,18 @@ impl<'a> Training<'a> {
             if matches!(ignore_document, Some(d) if d == i) {
                 continue;
             }
-            let node = self.document_selector_caches[i]
-                .borrow_mut()
-                .try_select(selector, self.document_roots[i], self.documents[i].parser());
-            let node_text_value =
-                node.and_then(|node| util::get_node_text(&self.documents[i], node, &self.settings.text_retrieval_options));
+            let node = self.document_selector_caches[i].borrow_mut().try_select(
+                selector,
+                self.document_roots[i],
+                self.documents[i].parser(),
+            );
+            let node_text_value = node.and_then(|node| {
+                util::get_node_text(
+                    &self.documents[i],
+                    node,
+                    &self.settings.text_retrieval_options,
+                )
+            });
             let expected = attribute.values[i].as_ref();
 
             if expected.is_none() {
@@ -510,7 +538,8 @@ impl<'a> Training<'a> {
                     }
                     trace!("Survivors: {} selectors left", selector_pool.len());
                     let start_time = Instant::now();
-                    for j in 0..usize::min(selector_pool.len(), self.settings.random_mutation_count) {
+                    for j in 0..usize::min(selector_pool.len(), self.settings.random_mutation_count)
+                    {
                         let mutated = searcher.mutate_selector(
                             &selector_pool[j],
                             self.document_roots[i],
@@ -597,17 +626,21 @@ impl<'a> Training<'a> {
 
     /// Turns this training into a [`TrainingResult`], consuming the training.
     pub fn to_result(self) -> TrainingResult {
-        let selectors = self.attributes.iter().filter_map(|attr| {
-            if let Some(selector) = self.get_best_selector_for(&attr) {
-                Some((attr.name.clone(), selector))
-            } else {
-                None
-            }
-        }).collect();
+        let selectors = self
+            .attributes
+            .iter()
+            .filter_map(|attr| {
+                if let Some(selector) = self.get_best_selector_for(&attr) {
+                    Some((attr.name.clone(), selector))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         TrainingResult {
             selectors,
-            settings: self.settings
+            settings: self.settings,
         }
     }
 }
@@ -822,11 +855,23 @@ mod tests {
 
         let result = training.to_result();
         let (dom0, dom1) = get_simple_example();
-        assert_eq!(result.get_value(&dom0, "attr1").unwrap_or(None), Some("blubb".into()));
-        assert_eq!(result.get_value(&dom0, "attr2").unwrap_or(None), Some("glogg".into()));
-        assert_eq!(result.get_value(&dom0, "attr3").unwrap_or(None), Some("plapp_before".into()));
+        assert_eq!(
+            result.get_value(&dom0, "attr1").unwrap_or(None),
+            Some("blubb".into())
+        );
+        assert_eq!(
+            result.get_value(&dom0, "attr2").unwrap_or(None),
+            Some("glogg".into())
+        );
+        assert_eq!(
+            result.get_value(&dom0, "attr3").unwrap_or(None),
+            Some("plapp_before".into())
+        );
         assert_eq!(result.get_value(&dom1, "attr1").unwrap_or(None), None);
         assert_eq!(result.get_value(&dom1, "attr2").unwrap_or(None), None);
-        assert_eq!(result.get_value(&dom1, "attr3").unwrap_or(None), Some("plapp_after".into()));
+        assert_eq!(
+            result.get_value(&dom1, "attr3").unwrap_or(None),
+            Some("plapp_after".into())
+        );
     }
 }

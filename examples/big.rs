@@ -1,16 +1,16 @@
 extern crate mlscraper_rust;
 
-use mlscraper_rust::train;
-use mlscraper_rust::selectors::Selector;
-use mlscraper_rust::search::{AttributeBuilder, FuzzerSettings};
 use env_logger::Env;
-use std::fs;
+use mlscraper_rust::search::{AttributeBuilder, FuzzerSettings};
+use mlscraper_rust::selectors::Selector;
+use mlscraper_rust::train;
+
 use std::time::Instant;
 
 fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info"))
-        .init();
-    const USER_AGENT: &str = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0;";
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    const USER_AGENT: &str =
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0;";
 
     let pages = &[
         "https://www.leagueofgraphs.com/match/euw/6375150547",
@@ -18,9 +18,11 @@ fn main() {
         "https://www.leagueofgraphs.com/match/euw/6378924500",
     ];
     let client = reqwest::blocking::Client::new();
-    let htmls = pages.iter()
+    let htmls = pages
+        .iter()
         .map(|url| {
-            client.get(*url)
+            client
+                .get(*url)
                 .header("User-Agent", USER_AGENT)
                 .send()
                 .expect("request")
@@ -29,10 +31,8 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-
     let filter = |selector: &Selector| {
-        !selector.string.contains(".no-padding-right") 
-            && !selector.string.contains("#graph")
+        !selector.string.contains(".no-padding-right") && !selector.string.contains("#graph")
     };
 
     let filter_matchtable = |selector: &Selector| {
@@ -379,31 +379,64 @@ fn main() {
         ],
         fuzzer_settings,
         3,
-    ).expect("training");
-    println!("Elapsed training time: {} ms", start_time.elapsed().as_millis());
+    )
+    .expect("training");
+    println!(
+        "Elapsed training time: {} ms",
+        start_time.elapsed().as_millis()
+    );
 
-    let new_page = client.get("https://www.leagueofgraphs.com/match/kr/6481506591")
+    let new_page = client
+        .get("https://www.leagueofgraphs.com/match/kr/6481506591")
         .header("User-Agent", USER_AGENT)
         .send()
         .expect("request")
         .text()
         .expect("text");
 
-    let mut new_dom = result.parse(&new_page)
-        .expect("parse");
+    let new_dom = result.parse(&new_page).expect("parse");
 
-    println!("Game type: {:?}", result.get_value(&new_dom, "game_type").ok().flatten());
-    println!("Game duration: {:?}", result.get_value(&new_dom, "game_duration").ok().flatten());
-    println!("Game result: {:?}", result.get_value(&new_dom, "team0result").ok().flatten());
+    println!(
+        "Game type: {:?}",
+        result.get_value(&new_dom, "game_type").ok().flatten()
+    );
+    println!(
+        "Game duration: {:?}",
+        result.get_value(&new_dom, "game_duration").ok().flatten()
+    );
+    println!(
+        "Game result: {:?}",
+        result.get_value(&new_dom, "team0result").ok().flatten()
+    );
 
-    for i in 0 .. 10 {
+    for i in 0..10 {
         println!(
             "Player {i}: {:?} ({:?}), K/D/A: {:?}/{:?}/{:?}",
-            result.get_value(&new_dom, &format!("summoner{i}")).ok().flatten().unwrap_or("N/A".into()),
-            result.get_value(&new_dom, &format!("summoner{i}champion")).ok().flatten().unwrap_or("N/A".into()),
-            result.get_value(&new_dom, &format!("summoner{i}kills")).ok().flatten().unwrap_or("N/A".into()),
-            result.get_value(&new_dom, &format!("summoner{i}deaths")).ok().flatten().unwrap_or("N/A".into()),
-            result.get_value(&new_dom, &format!("summoner{i}assists")).ok().flatten().unwrap_or("N/A".into())
+            result
+                .get_value(&new_dom, &format!("summoner{i}"))
+                .ok()
+                .flatten()
+                .unwrap_or("N/A".into()),
+            result
+                .get_value(&new_dom, &format!("summoner{i}champion"))
+                .ok()
+                .flatten()
+                .unwrap_or("N/A".into()),
+            result
+                .get_value(&new_dom, &format!("summoner{i}kills"))
+                .ok()
+                .flatten()
+                .unwrap_or("N/A".into()),
+            result
+                .get_value(&new_dom, &format!("summoner{i}deaths"))
+                .ok()
+                .flatten()
+                .unwrap_or("N/A".into()),
+            result
+                .get_value(&new_dom, &format!("summoner{i}assists"))
+                .ok()
+                .flatten()
+                .unwrap_or("N/A".into())
         )
     }
 

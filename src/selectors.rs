@@ -1,12 +1,11 @@
 use crate::util;
 use std::borrow::BorrowMut;
 
-
+use radix_trie::{Trie, TrieKey};
 use rand::Rng;
 use std::fmt::Write;
 use tl::NodeHandle;
 use tl::{HTMLTag, Node, Parser};
-use radix_trie::{Trie,TrieKey};
 
 #[derive(Clone)]
 pub enum SelectorPart {
@@ -113,12 +112,12 @@ pub struct Selector {
 }
 
 impl PartialEq for Selector {
-    fn eq(&self, other: &Selector) -> bool { 
+    fn eq(&self, other: &Selector) -> bool {
         self.string.eq(&other.string)
     }
 }
 
-impl Eq for Selector { }
+impl Eq for Selector {}
 
 impl TrieKey for Selector {
     fn encode_bytes(&self) -> Vec<u8> {
@@ -149,33 +148,50 @@ impl Selector {
         self.parts.len()
     }
 
-    pub fn try_select_with_skip(&self, handle: NodeHandle, parser: &Parser, skip: usize) -> Option<NodeHandle> {
-        self.parts.iter().skip(skip).fold(Some(handle), |acc, selector| {
-            acc.and_then(|node| selector.try_select(node, parser))
-        })
+    pub fn try_select_with_skip(
+        &self,
+        handle: NodeHandle,
+        parser: &Parser,
+        skip: usize,
+    ) -> Option<NodeHandle> {
+        self.parts
+            .iter()
+            .skip(skip)
+            .fold(Some(handle), |acc, selector| {
+                acc.and_then(|node| selector.try_select(node, parser))
+            })
     }
 
-    pub fn try_select_with_skip_path(&self, handle: NodeHandle, parser: &Parser, skip: usize, max_len: usize) -> Vec<Option<NodeHandle>> {
-        self.parts.iter().skip(skip).fold(vec![], |mut path, selector| {
-            if path.len() >= max_len {
-                return path;
-            }
+    pub fn try_select_with_skip_path(
+        &self,
+        handle: NodeHandle,
+        parser: &Parser,
+        skip: usize,
+        max_len: usize,
+    ) -> Vec<Option<NodeHandle>> {
+        self.parts
+            .iter()
+            .skip(skip)
+            .fold(vec![], |mut path, selector| {
+                if path.len() >= max_len {
+                    return path;
+                }
 
-            // Continue from last node or root node
-            let last = if path.is_empty() {
-                Some(handle)
-            } else {
-                *path.last().unwrap()
-            };
+                // Continue from last node or root node
+                let last = if path.is_empty() {
+                    Some(handle)
+                } else {
+                    *path.last().unwrap()
+                };
 
-            if let Some(last_node) = last {
-                path.push(selector.try_select(last_node, parser));
-            } else {
-                path.push(None);
-            }
+                if let Some(last_node) = last {
+                    path.push(selector.try_select(last_node, parser));
+                } else {
+                    path.push(None);
+                }
 
-            path
-        })
+                path
+            })
     }
 
     /// Tries to find a node matching this Selector by searching all nodes below
@@ -184,7 +200,12 @@ impl Selector {
         self.try_select_with_skip(handle, parser, 0)
     }
 
-    pub fn try_select_path(&self, handle: NodeHandle, parser: &Parser, max_len: usize) -> Vec<Option<NodeHandle>> {
+    pub fn try_select_path(
+        &self,
+        handle: NodeHandle,
+        parser: &Parser,
+        max_len: usize,
+    ) -> Vec<Option<NodeHandle>> {
         self.try_select_with_skip_path(handle, parser, 0, max_len)
     }
 
@@ -241,36 +262,59 @@ impl SelectorCache {
 
     /// Whether we always cache the "leaf node", i.e. the "deepest" result of the selector
     const ALWAYS_CACHE_LEAF: bool = true;
-    
-    /// If AGGRESSIVE_ADD_MAX_DEPTH is > 0, cache elements up to a depth of 
+
+    /// If AGGRESSIVE_ADD_MAX_DEPTH is > 0, cache elements up to a depth of
     /// AGGRESSIVE_ADD_MAX_DEPTH from the root node even if they have not
     /// been explicitely requested.
     const AGGRESSIVE_ADD_MAX_DEPTH: usize = 4;
 
     pub(crate) fn new() -> Self {
         SelectorCache {
-            selector_cache: Default::default()
+            selector_cache: Default::default(),
         }
     }
 
     /// Tries to select a target node by applying the selector to root.
     /// Uses a Trie to cache and reuse partial results.
-    pub(crate) fn try_select(&mut self, selector: &Selector, root: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
-        if let Some((ancestor_length, ancestor_handle)) = self.selector_cache.get_ancestor_value(selector) {
+    pub(crate) fn try_select(
+        &mut self,
+        selector: &Selector,
+        root: NodeHandle,
+        parser: &Parser,
+    ) -> Option<NodeHandle> {
+        if let Some((ancestor_length, ancestor_handle)) =
+            self.selector_cache.get_ancestor_value(selector)
+        {
             if ancestor_handle.is_some() && *ancestor_length < selector.len() {
-                let target = selector.try_select_with_skip(ancestor_handle.unwrap(), parser, *ancestor_length);
+                let target = selector.try_select_with_skip(
+                    ancestor_handle.unwrap(),
+                    parser,
+                    *ancestor_length,
+                );
                 if SelectorCache::ENABLED {
                     let len = *ancestor_length;
                     if SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH > len {
-                        selector.try_select_with_skip_path(ancestor_handle.unwrap(), parser, len, SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH - len)
+                        selector
+                            .try_select_with_skip_path(
+                                ancestor_handle.unwrap(),
+                                parser,
+                                len,
+                                SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH - len,
+                            )
                             .iter()
                             .enumerate()
                             .for_each(|(i, subnode)| {
-                                self.selector_cache.insert(selector.split_at(len+i+1).0, (len+i+1, *subnode));
+                                self.selector_cache.insert(
+                                    selector.split_at(len + i + 1).0,
+                                    (len + i + 1, *subnode),
+                                );
                             });
                     }
-                    if SelectorCache::ALWAYS_CACHE_LEAF && SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH - len < selector.len() {
-                        self.selector_cache.insert(selector.clone(), (selector.len(), target));
+                    if SelectorCache::ALWAYS_CACHE_LEAF
+                        && SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH - len < selector.len()
+                    {
+                        self.selector_cache
+                            .insert(selector.clone(), (selector.len(), target));
                     }
                 }
                 target
@@ -281,15 +325,20 @@ impl SelectorCache {
             let target = selector.try_select(root, parser);
             if SelectorCache::ENABLED {
                 if SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH > 0 {
-                    selector.try_select_path(root, parser, SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH)
+                    selector
+                        .try_select_path(root, parser, SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH)
                         .iter()
                         .enumerate()
                         .for_each(|(i, subnode)| {
-                            self.selector_cache.insert(selector.split_at(i+1).0, (i+1, *subnode));
+                            self.selector_cache
+                                .insert(selector.split_at(i + 1).0, (i + 1, *subnode));
                         });
                 }
-                if SelectorCache::ALWAYS_CACHE_LEAF && SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH < selector.len() {
-                    self.selector_cache.insert(selector.clone(), (selector.len(), target));
+                if SelectorCache::ALWAYS_CACHE_LEAF
+                    && SelectorCache::AGGRESSIVE_ADD_MAX_DEPTH < selector.len()
+                {
+                    self.selector_cache
+                        .insert(selector.clone(), (selector.len(), target));
                 }
             }
             target

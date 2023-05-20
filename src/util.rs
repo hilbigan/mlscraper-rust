@@ -70,7 +70,8 @@ pub(crate) fn get_trimmed_attr_value(tag: &HTMLTag, attr: &str) -> Option<String
 
 /// Returns the trimmed value of the first attribute whose name starts with `attr_prefix`,
 pub(crate) fn get_trimmed_attr_prefix_value(tag: &HTMLTag, attr_prefix: &str) -> Option<String> {
-    let attrv = tag.attributes()
+    let attrv = tag
+        .attributes()
         .iter()
         .find(|(attr, _)| attr.starts_with(attr_prefix))
         .map(|(_, val)| val)
@@ -175,14 +176,18 @@ pub enum TextRetrievalOption {
     /// Consider the value of the first attribute whose name starts with the given prefix as text.
     /// For example, AttributeStartsWith("data-") will consider the value of the first attribute whose name
     /// starts with "data-" as searchable text.
-    AttributeStartsWith(String)
+    AttributeStartsWith(String),
 }
 
 pub type TextRetrievalOptions = Vec<TextRetrievalOption>;
 
 /// Returns the node's text value, which is either its inner text, the value
 /// of its "title" attribute, or the value of its "alt" attribute (in that order).
-pub fn get_node_text(vdom: &VDom, node: NodeHandle, text_retrieval_options: &TextRetrievalOptions) -> Option<String> {
+pub fn get_node_text(
+    vdom: &VDom,
+    node: NodeHandle,
+    text_retrieval_options: &TextRetrievalOptions,
+) -> Option<String> {
     node.get(vdom.parser())
         .and_then(|node| node.as_tag())
         .and_then(|tag| {
@@ -194,7 +199,7 @@ pub fn get_node_text(vdom: &VDom, node: NodeHandle, text_retrieval_options: &Tex
                         if !trimmed_inner_text.is_empty() {
                             return Some(trimmed_inner_text.to_string());
                         }
-                    },
+                    }
                     TextRetrievalOption::Attribute(name) => {
                         let value = get_trimmed_attr_value(tag, &name);
                         if value.is_some() {
