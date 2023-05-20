@@ -117,18 +117,6 @@ pub(crate) fn get_id<'p>(handle: NodeHandle, parser: &'p Parser<'p>) -> Option<C
     )
 }
 
-/// Get all classes of a node as a single string
-pub(crate) fn get_classes<'p>(handle: NodeHandle, parser: &'p Parser<'p>) -> Option<Cow<'p, str>> {
-    Some(
-        handle
-            .get(parser)?
-            .as_tag()?
-            .attributes()
-            .class()?
-            .as_utf8_str(),
-    )
-}
-
 /// Highlight the given selector's selection by adding a red border to it
 /// Returns true if successful.
 pub(crate) fn style_selected_element(selector: &Selector, dom: &mut VDom) -> bool {
