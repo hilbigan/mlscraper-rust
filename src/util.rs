@@ -118,6 +118,7 @@ pub(crate) fn get_id<'p>(handle: NodeHandle, parser: &'p Parser<'p>) -> Option<C
 }
 
 /// Get all classes of a node as a single string
+#[allow(dead_code)] // used in unit tests
 pub(crate) fn get_classes<'p>(handle: NodeHandle, parser: &'p Parser<'p>) -> Option<Cow<'p, str>> {
     Some(
         handle
