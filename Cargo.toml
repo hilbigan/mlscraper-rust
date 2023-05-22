@@ -1,6 +1,6 @@
 [package]
 name = "mlscraper-rust"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Aaron Hilbig <hilbigan.info@gmail.com>"]
 description = "Scrape structured data from HTML documents automatically"
 keywords = [
