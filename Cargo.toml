@@ -16,7 +16,6 @@ categories = [
 readme = "README.md"
 repository = "https://github.com/hilbigan/mlscraper-rust"
 license = "MIT"
-license-file = "LICENSE"
 edition = "2021"
 include = [
     "**/*.rs",
