@@ -152,5 +152,5 @@ In your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-mlscraper_rust = { git = "https://github.com/hilbigan/mlscraper-rust", branch = "main" }
+mlscraper-rust = "0.1.0"
 ```
