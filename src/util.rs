@@ -86,7 +86,7 @@ pub(crate) fn get_trimmed_attr_prefix_value(tag: &HTMLTag, attr_prefix: &str) ->
 }
 
 /// Searches for a node whose inner text matches the given text.
-/// NOTE that this also includes the inner text of any child nodes! See [tag_direct_inner_text].
+/// NOTE that this also includes the inner text of any child nodes!
 /// Both strings are trimmed before comparison.
 pub fn find_node_with_text(dom: &VDom, text: &str) -> Option<NodeHandle> {
     dom.nodes()
@@ -169,7 +169,7 @@ pub(crate) fn random_index_weighted<R: Rng>(rng: &mut R, weights: &[f32]) -> usi
 /// We generate selectors for every node that yields text that matches the expected attribute value.
 #[derive(Debug)]
 pub enum TextRetrievalOption {
-    /// Consider the node's inner text (see [get_direct_inner_text]) as text.
+    /// Consider the node's inner text as text.
     InnerText,
     /// Consider the value of the given attribute as text.
     /// For example, Attribute("title"") will consider the value of the "title" attribute as searchable text.
@@ -182,8 +182,7 @@ pub enum TextRetrievalOption {
 
 pub type TextRetrievalOptions = Vec<TextRetrievalOption>;
 
-/// Returns the node's text value, which is either its inner text, the value
-/// of its "title" attribute, or the value of its "alt" attribute (in that order).
+/// Returns the node's text value, as specified by the given [`TextRetrievalOptions`].
 pub fn get_node_text(
     vdom: &VDom,
     node: NodeHandle,

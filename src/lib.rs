@@ -18,7 +18,7 @@ use rand::SeedableRng;
 /// sufficient for most input HTML documents. If a document has a very
 /// deep, nested structure, a higher number of iterations may be necessary.
 ///
-/// Further settings can be adjusted with `FuzzerSettings`. If the generated
+/// Further settings can be adjusted with [`FuzzerSettings`]. If the generated
 /// selectors are not satisfactory, you can experiment with increasing the
 /// `random_generation_count`, `random_generation_retries` and other settings.
 /// Note that this may impact the training time.
@@ -37,7 +37,7 @@ pub fn train<'a, S: Into<&'a str>>(
     train_with_rng(documents, attributes, settings, iterations, &mut rng)
 }
 
-/// Same as [`train`], but with a custom random number generator (Rng).
+/// Same as [`train`], but with a custom random number generator ([`Rng`]).
 pub fn train_with_rng<'a, R: Rng, S: Into<&'a str>>(
     mut documents: Vec<S>,
     attributes: Vec<Attribute<'a>>,

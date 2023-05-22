@@ -199,14 +199,14 @@ impl TrainingResult {
     }
 
     /// Parse a document and return the DOM object.
-    /// Calling this and reusing the DOM object is more efficient than calling [parse_and_get_value] multiple times.
+    /// Calling this and reusing the DOM object is more efficient than calling [`TrainingResult::parse_and_get_value`] multiple times.
     pub fn parse<'s>(&self, document: &'s str) -> Result<VDom<'s>> {
         tl::parse(document, tl::ParserOptions::default())
             .map_err(|_| anyhow!("Failed to parse document!"))
     }
 
     /// Parse a document and return the value of the given attribute.
-    /// This is equivalent to calling [parse] and then [get_value].
+    /// This is equivalent to calling [`TrainingResult::parse`] and then [`TrainingResult::get_value`].
     pub fn parse_and_get_value(
         &self,
         document: &str,
