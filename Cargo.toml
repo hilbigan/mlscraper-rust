@@ -1,7 +1,27 @@
 [package]
 name = "mlscraper-rust"
 version = "0.1.0"
+authors = ["Aaron Hilbig <hilbigan.info@gmail.com>"]
+description = "Scrape structured data from HTML documents automatically"
+keywords = [
+    "scraping",
+    "selector",
+    "html",
+    "css"
+]
+categories = [
+    "web-programming",
+    "development-tools"
+]
+readme = "README.md"
+repository = "https://github.com/hilbigan/mlscraper-rust"
+license = "MIT"
+license-file = "LICENSE"
 edition = "2021"
+include = [
+    "**/*.rs",
+    "Cargo.toml"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
