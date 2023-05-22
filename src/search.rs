@@ -129,6 +129,16 @@ impl Deref for CheckedSelector {
     }
 }
 
+/// Settings for the fuzzing algorithm.
+///
+/// The default settings should be good for many applications,
+/// but you might want to adjust how missing data is treated 
+/// ([`FuzzerSettings::missing_data_strategy`]), how duplicate matches are 
+/// handled ([`FuzzerSettings::multiple_matches_strategy`]), and what parts of 
+/// the documents are considered text ([`FuzzerSettings::text_retrieval_options`]).
+///
+/// If you encounter performance problems or are not satisfied with the results,
+/// you can experiment with the random generation/mutation settings.
 #[derive(Debug)]
 pub struct FuzzerSettings {
     /// Strategy for dealing with missing data (expected attribute value is `None`)

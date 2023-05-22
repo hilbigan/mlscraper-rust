@@ -1,3 +1,36 @@
+//! Tool for scraping structured data from webpages automatically.
+//!
+//! This project is inspired by the python package [mlscraper](https://github.com/lorey/mlscraper).
+//! See README.md for a comparison with the python version and example code.
+//!
+//! Quick example:
+//!
+//! ```
+//! # use mlscraper_rust::search::AttributeBuilder;
+//! let html = reqwest::blocking::get("http://quotes.toscrape.com/author/Albert-Einstein/")
+//!     .expect("request") // Scrappy error handling for demonstration purposes
+//!     .text()
+//!     .expect("text");
+//!
+//! let result = mlscraper_rust::train(
+//!     vec![html.as_str()],
+//!     vec![
+//!         AttributeBuilder::new("name")
+//!             .values(&[Some("Albert Einstein")])
+//!             .build(),
+//!
+//!         AttributeBuilder::new("born")
+//!             .values(&[Some("March 14, 1879")])
+//!             .build(),
+//!     ],
+//!     Default::default(),
+//!     1
+//! ).expect("training");
+//!
+//! // Prints `{"born": .author-born-date, "name": h3}`
+//! println!("{:?}", result.selectors());
+//! ```
+
 extern crate tl;
 
 pub mod search;
