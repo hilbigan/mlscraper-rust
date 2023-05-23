@@ -199,6 +199,9 @@ impl Default for FuzzerSettings {
 /// let attribute_2 = result.get_value(&dom, "attribute_2_name").expect("get_value");
 /// // ...
 /// ```
+///
+/// Enable the "serde" feature to enable serialization/deserialization using 
+/// serde. This can be useful for reusing previously computed training results.
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TrainingResult {

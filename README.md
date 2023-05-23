@@ -102,10 +102,10 @@ that work on *all* the input documents for all the provided values.
     Multithreading) -- see `examples/big.rs`.
 - **Proper handling of missing data**: We allow values to be missing from
     some training examples and provide different strategies of
-    handling these cases (see `MissingDataStrategy`).
+    handling these cases (see [MissingDataStrategy](https://docs.rs/mlscraper-rust/latest/mlscraper_rust/search/enum.MissingDataStrategy.html)).
 - **Proper handling of duplicate data**: If a value is present multiple
     time, you can control which elements should be preferrably selected
-    (see `MultipleMatchesStrategy`).
+    (see [MultipleMatchesStrategy](https://docs.rs/mlscraper-rust/latest/mlscraper_rust/search/enum.MultipleMatchesStrategy.html)).
 - **Configurable data sources**: You can define what should count as the "text"
     of an HTML tag.
 - **Filtering**: You can add custom filters to control
@@ -152,5 +152,8 @@ In your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-mlscraper-rust = "0.1.0"
+mlscraper-rust = "0.1.2"
 ```
+
+Optionally, add `features = ["serde"]` to enable (de)serialization
+of the [TrainingResult](https://docs.rs/mlscraper-rust/latest/mlscraper_rust/search/struct.TrainingResult.html)s using [serde](https://serde.rs/).
