@@ -7,7 +7,11 @@ use std::fmt::Write;
 use tl::NodeHandle;
 use tl::{HTMLTag, Node, Parser};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum SelectorPart {
     Tag(String),
     Class(String),
@@ -105,6 +109,7 @@ impl SelectorPart {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Selector {
     parts: Vec<SelectorPart>,
     pub string: String,

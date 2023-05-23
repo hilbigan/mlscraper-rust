@@ -4,6 +4,9 @@ use std::borrow::Cow;
 use tl::VDom;
 use tl::{HTMLTag, Node, NodeHandle, Parser};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Find parent of node using a brute force search in the parser's node table
 pub(crate) fn find_parent(handle: NodeHandle, parser: &Parser) -> Option<NodeHandle> {
     let inner = handle.get_inner();
@@ -168,6 +171,7 @@ pub(crate) fn random_index_weighted<R: Rng>(rng: &mut R, weights: &[f32]) -> usi
 /// Different options for retrieving text from a node.
 /// We generate selectors for every node that yields text that matches the expected attribute value.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TextRetrievalOption {
     /// Consider the node's inner text as text.
     InnerText,

@@ -13,8 +13,12 @@ use crate::util;
 use crate::util::{find_root, TextRetrievalOption, TextRetrievalOptions};
 use tl::{NodeHandle, VDom};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Strategy for dealing with missing data (expected attribute value is `None`)
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MissingDataStrategy {
     /// If an expected attribute value is `None`, we do not expect the selector to match any node.
     AllowMissingNode,
@@ -26,6 +30,7 @@ pub enum MissingDataStrategy {
 
 /// Strategy for dealing with multiple nodes matching the expected attribute value
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MultipleMatchesStrategy {
     /// Choose the node which results in the best selector
     PrioritizeBestSelector,
@@ -132,14 +137,15 @@ impl Deref for CheckedSelector {
 /// Settings for the fuzzing algorithm.
 ///
 /// The default settings should be good for many applications,
-/// but you might want to adjust how missing data is treated 
-/// ([`FuzzerSettings::missing_data_strategy`]), how duplicate matches are 
-/// handled ([`FuzzerSettings::multiple_matches_strategy`]), and what parts of 
+/// but you might want to adjust how missing data is treated
+/// ([`FuzzerSettings::missing_data_strategy`]), how duplicate matches are
+/// handled ([`FuzzerSettings::multiple_matches_strategy`]), and what parts of
 /// the documents are considered text ([`FuzzerSettings::text_retrieval_options`]).
 ///
 /// If you encounter performance problems or are not satisfied with the results,
 /// you can experiment with the random generation/mutation settings.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct FuzzerSettings {
     /// Strategy for dealing with missing data (expected attribute value is `None`)
     pub missing_data_strategy: MissingDataStrategy,
@@ -194,6 +200,7 @@ impl Default for FuzzerSettings {
 /// // ...
 /// ```
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TrainingResult {
     selectors: HashMap<String, Selector>,
     settings: FuzzerSettings,
@@ -881,6 +888,40 @@ mod tests {
         assert_eq!(result.get_value(&dom1, "attr2").unwrap_or(None), None);
         assert_eq!(
             result.get_value(&dom1, "attr3").unwrap_or(None),
+            Some("plapp_after".into())
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serialization() {
+        let (dom0, dom1) = get_simple_example();
+        let mut training = Training::new(
+            vec![dom0],
+            vec![Attribute {
+                name: "attr3".to_string(),
+                values: vec![Some("plapp_before".into())],
+                filter: None,
+            }],
+        )
+        .unwrap();
+
+        let mut rng = ChaCha8Rng::seed_from_u64(1337);
+        training.do_one_fuzzing_round(&mut rng);
+        let result = training.to_result();
+        assert_eq!(result.get_selector("attr3"), Some("#3"));
+        assert_eq!(
+            result.get_value(&dom1, "attr3").unwrap_or(None),
+            Some("plapp_after".into())
+        );
+
+        let ser = serde_json::to_string(&result).unwrap();
+        assert!(ser.starts_with(r#"{"selectors":{"attr3":{"parts":[{"Id":"3"}]"#));
+
+        let de: TrainingResult = serde_json::from_str(ser.as_ref()).unwrap();
+        assert_eq!(de.get_selector("attr3"), Some("#3"));
+        assert_eq!(
+            de.get_value(&dom1, "attr3").unwrap_or(None),
             Some("plapp_after".into())
         );
     }
