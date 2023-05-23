@@ -267,10 +267,10 @@ impl TrainingResult {
     /// which, as I realize writing this, may be a poor design choice. TODO.
     ///
     /// Example:
-    /// ´´´
+    /// ```ignore
     /// let out_html = training_result.highlight_selections_with_red_border(&mut dom);
     /// fs::write("out.html", out_html).expect("write");
-    /// ´´´
+    /// ```
     pub fn highlight_selections_with_red_border(&self, dom: &mut VDom<'_>) -> String {
         self.selectors().values().for_each(|selector| {
             util::style_selected_element(selector, dom);
