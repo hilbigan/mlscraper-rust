@@ -136,6 +136,7 @@ pub(crate) fn get_classes<'p>(handle: NodeHandle, parser: &'p Parser<'p>) -> Opt
 /// Highlight the given selector's selection by adding a red border to it
 /// Returns true if successful.
 pub(crate) fn style_selected_element(selector: &Selector, dom: &mut VDom) -> bool {
+    const HIGHLIGHT_CSS: &'static str = "outline: 1px solid red;";
     if let Some(node) = selector.try_select(*find_root(dom).unwrap(), dom.parser()) {
         let attributes = node
             .get_mut(dom.parser_mut())
@@ -145,10 +146,10 @@ pub(crate) fn style_selected_element(selector: &Selector, dom: &mut VDom) -> boo
             .attributes_mut();
         if let Some(Some(style)) = attributes.get_mut("style") {
             // Add to pre-existing style
-            let new_style = format!("{}; border: 1px solid red;", style.as_utf8_str()).into_bytes();
+            let new_style = format!("{}; {}", style.as_utf8_str(), HIGHLIGHT_CSS).into_bytes();
             style.set(new_style).is_ok()
         } else {
-            attributes.insert("style", Some("border: 1px solid red;"));
+            attributes.insert("style", Some(HIGHLIGHT_CSS));
             true
         }
     } else {
